@@ -1,0 +1,46 @@
+name: Ingest new rulings
+
+on:
+  push:
+    paths:
+      - 'raw/**.json'
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need HEAD^ to diff which files changed
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow openpyxl
+
+      - name: Ingest new JSON files
+        run: |
+          # Find JSON files added in the triggering commit
+          NEW_FILES=$(git diff --name-only HEAD^1 HEAD -- 'raw/*.json')
+          if [ -z "$NEW_FILES" ]; then
+            echo "No new raw/*.json files to ingest."
+            exit 0
+          fi
+          for f in $NEW_FILES; do
+            echo "Ingesting $f …"
+            python3 ingest.py "$f"
+          done
+
+      - name: Commit updated parquet
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tentatives.parquet
+          git diff --staged --quiet && echo "No parquet changes." || \
+            git commit -m "Update tentatives.parquet [skip ci]"
+          git push

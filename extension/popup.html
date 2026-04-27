@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 320px;
+      margin: 0;
+      color: #222;
+      font-size: 13px;
+    }
+
+    header {
+      background: #1a3a5c;
+      color: white;
+      padding: 0.75rem 1rem;
+    }
+    header h1 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+    header p  { font-size: 0.75rem; opacity: 0.7; margin: 0.15rem 0 0; }
+
+    main { padding: 0.85rem 1rem; }
+
+    .status {
+      background: #f0f5ff;
+      border: 1px solid #c8d8f0;
+      border-radius: 5px;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: #1a3a5c;
+      min-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .status.error   { background: #fff0f0; border-color: #f5c6c6; color: #7a2020; }
+    .status.success { background: #f0fff4; border-color: #b2dfca; color: #1a5c2a; }
+    .status.warn    { background: #fffbea; border-color: #f5e0a0; color: #7a5c00; }
+    .spinner {
+      width: 14px; height: 14px; flex-shrink: 0;
+      border: 2px solid #c8d8f0; border-top-color: #1a3a5c;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    button {
+      width: 100%;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+    }
+    #send-btn {
+      background: #1a3a5c;
+      color: white;
+    }
+    #send-btn:hover:not(:disabled) { background: #214d78; }
+    #send-btn:disabled { opacity: 0.4; cursor: default; }
+
+    #settings-btn {
+      background: none;
+      color: #888;
+      font-size: 0.78rem;
+      font-weight: 400;
+      padding: 0.2rem;
+      text-decoration: underline;
+    }
+    #settings-btn:hover { color: #444; }
+
+    /* Settings panel */
+    #settings {
+      display: none;
+      border-top: 1px solid #eee;
+      padding-top: 0.75rem;
+      margin-top: 0.25rem;
+    }
+    label { display: block; font-size: 0.78rem; color: #555; margin-bottom: 0.1rem; }
+    input[type=text], input[type=password] {
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-bottom: 0.6rem;
+      box-sizing: border-box;
+    }
+    #save-btn {
+      background: #eef3fb;
+      color: #1a3a5c;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: 0.1rem;
+    }
+    #save-btn:hover { background: #d8e8f8; }
+    .hint { font-size: 0.72rem; color: #aaa; margin-top: -0.4rem; margin-bottom: 0.6rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SFSC Tentative Rulings</h1>
+    <p>SF Superior Court — Department 302</p>
+  </header>
+
+  <main>
+    <div class="status" id="status">
+      <span id="status-text">Checking page…</span>
+    </div>
+
+    <button id="send-btn" disabled>Send to GitHub</button>
+    <button id="settings-btn">⚙ Settings</button>
+
+    <div id="settings">
+      <label>GitHub Token (PAT with Contents: write)</label>
+      <input type="password" id="token" placeholder="github_pat_…">
+      <p class="hint">Create at: github.com → Settings → Developer settings → Personal access tokens</p>
+
+      <label>Repository (owner/repo)</label>
+      <input type="text" id="repo" placeholder="amitabho/sfsc-tentatives">
+
+      <label>Branch</label>
+      <input type="text" id="branch" placeholder="master">
+
+      <button id="save-btn">Save settings</button>
+    </div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
