@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SFSC Dept 302 — Tentative Rulings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      color: #222;
+      line-height: 1.5;
+    }
+
+    header {
+      background: #1a3a5c;
+      color: white;
+      padding: 1.25rem 2rem;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    #stats { font-size: 0.82rem; opacity: 0.75; margin-top: 0.2rem; }
+
+    .controls {
+      background: white;
+      border-bottom: 1px solid #ddd;
+      padding: 0.85rem 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+    }
+    .controls input, .controls select {
+      padding: 0.38rem 0.65rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: white;
+    }
+    #search { flex: 1; min-width: 220px; }
+    .date-range { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #555; }
+
+    main { padding: 1rem 2rem 3rem; }
+
+    #result-info { font-size: 0.82rem; color: #666; margin-bottom: 0.5rem; min-height: 1.2em; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      font-size: 0.865rem;
+    }
+    thead { background: #1a3a5c; color: white; }
+    th {
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr { cursor: pointer; transition: background 0.1s; }
+    tbody tr:hover { background: #eef3fb; }
+
+    .col-date  { white-space: nowrap; width: 95px; }
+    .col-time  { white-space: nowrap; width: 55px; color: #555; }
+    .col-case  { white-space: nowrap; width: 110px; font-family: monospace; font-size: 0.8rem; }
+    .col-title { max-width: 200px; }
+    .col-motion{ max-width: 260px; }
+    .col-judge { width: 150px; }
+
+    .clip {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .no-data { text-align: center; padding: 2.5rem; color: #999; }
+
+    #pagination {
+      display: flex; gap: 0.35rem; justify-content: center;
+      padding: 1rem 0; flex-wrap: wrap;
+    }
+    #pagination button {
+      padding: 0.28rem 0.6rem;
+      border: 1px solid #ccc;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    #pagination button.active { background: #1a3a5c; color: white; border-color: #1a3a5c; }
+    #pagination button:hover:not(.active):not(:disabled) { background: #eef3fb; }
+    #pagination button:disabled { opacity: 0.4; cursor: default; }
+
+    /* Modal */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 200;
+      padding: 2rem 1rem; overflow-y: auto;
+    }
+    .overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+    .modal {
+      background: white; border-radius: 8px;
+      max-width: 800px; width: 100%;
+      padding: 1.5rem; position: relative; margin: auto;
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 0.2rem; padding-right: 2rem; }
+    .modal .meta { font-size: 0.78rem; color: #666; margin-bottom: 0.85rem; }
+    .modal .motion {
+      font-size: 0.83rem; font-style: italic; color: #444;
+      background: #f7f8fa; border-radius: 4px;
+      padding: 0.5rem 0.75rem; margin-bottom: 0.85rem;
+    }
+    .modal .ruling { font-size: 0.875rem; line-height: 1.75; white-space: pre-wrap; }
+    .modal-close {
+      position: absolute; top: 1rem; right: 1rem;
+      background: none; border: none; font-size: 1.6rem;
+      cursor: pointer; color: #aaa; line-height: 1;
+    }
+    .modal-close:hover { color: #444; }
+
+    /* Loading */
+    #loading { text-align: center; padding: 4rem; color: #666; }
+    .spinner {
+      display: inline-block; width: 2rem; height: 2rem;
+      border: 3px solid #ddd; border-top-color: #1a3a5c;
+      border-radius: 50%; animation: spin 0.65s linear infinite;
+      margin-bottom: 0.75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 680px) {
+      header, .controls, main { padding-left: 0.75rem; padding-right: 0.75rem; }
+      .col-time, .col-judge { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SF Superior Court — Dept 302 Tentative Rulings</h1>
+  <div id="stats">Loading…</div>
+</header>
+
+<div class="controls">
+  <input type="search" id="search" placeholder="Search case number, title, or ruling text…">
+  <div class="date-range">
+    From <input type="date" id="date-from">
+    to   <input type="date" id="date-to">
+  </div>
+  <select id="judge"><option value="">All judges</option></select>
+</div>
+
+<main>
+  <div id="loading"><div class="spinner"></div><p>Initializing database…</p></div>
+  <div id="result-info" hidden></div>
+  <div id="table-wrap" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th class="col-date">Date</th>
+          <th class="col-time">Time</th>
+          <th class="col-case">Case #</th>
+          <th class="col-title">Case Title</th>
+          <th class="col-motion">Motion</th>
+          <th class="col-judge">Judge</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="pagination"></div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-close" id="modal-close">×</button>
+    <h2 id="modal-title"></h2>
+    <div class="meta" id="modal-meta"></div>
+    <div class="motion" id="modal-motion"></div>
+    <div class="ruling" id="modal-ruling"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/+esm';
+
+const PAGE_SIZE = 25;
+let conn, totalRows = 0, currentPage = 0, lastCount = 0, lastWhere = 'TRUE';
+
+// ── Init DuckDB ──────────────────────────────────────────────────────────────
+const bundles = duckdb.getJsDelivrBundles();
+const bundle  = await duckdb.selectBundle(bundles);
+const workerUrl = URL.createObjectURL(
+  new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+);
+const worker = new Worker(workerUrl);
+const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
+await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+URL.revokeObjectURL(workerUrl);
+
+const parquetUrl = new URL('./tentatives.parquet', window.location.href).href;
+await db.registerFileURL('data.parquet', parquetUrl, duckdb.DuckDBDataProtocol.HTTP, false);
+conn = await db.connect();
+
+// ── Stats ────────────────────────────────────────────────────────────────────
+const statsRes = await conn.query(
+  `SELECT COUNT(*) AS n, MIN(court_date) AS lo, MAX(court_date) AS hi FROM 'data.parquet'`
+);
+const s = statsRes.toArray()[0];
+totalRows = Number(s.n);
+document.getElementById('stats').textContent =
+  `${totalRows.toLocaleString()} rulings · ${s.lo} → ${s.hi}`;
+
+// ── Judges dropdown ──────────────────────────────────────────────────────────
+const judgesRes = await conn.query(
+  `SELECT DISTINCT judge FROM 'data.parquet' WHERE judge IS NOT NULL AND judge != '' ORDER BY judge`
+);
+const judgeEl = document.getElementById('judge');
+for (const row of judgesRes.toArray()) {
+  const opt = document.createElement('option');
+  opt.value = opt.textContent = row.judge;
+  judgeEl.appendChild(opt);
+}
+
+// ── Default date range ───────────────────────────────────────────────────────
+const dateFrom = document.getElementById('date-from');
+const dateTo   = document.getElementById('date-to');
+dateFrom.value = s.lo;
+dateTo.value   = s.hi;
+
+// ── Show UI ──────────────────────────────────────────────────────────────────
+document.getElementById('loading').hidden    = true;
+document.getElementById('table-wrap').hidden = false;
+document.getElementById('result-info').hidden = false;
+
+// ── Query ────────────────────────────────────────────────────────────────────
+function buildWhere() {
+  const search = document.getElementById('search').value.trim();
+  const from   = dateFrom.value;
+  const to     = dateTo.value;
+  const judge  = judgeEl.value;
+  const parts  = [];
+  if (from)   parts.push(`court_date >= '${from}'`);
+  if (to)     parts.push(`court_date <= '${to}'`);
+  if (judge)  parts.push(`judge = '${judge.replace(/'/g, "''")}'`);
+  if (search) {
+    const q = search.replace(/'/g, "''");
+    parts.push(`(case_number ILIKE '%${q}%' OR case_title ILIKE '%${q}%' OR ruling ILIKE '%${q}%')`);
+  }
+  return parts.length ? parts.join(' AND ') : 'TRUE';
+}
+
+async function runQuery(page = 0) {
+  currentPage = page;
+  lastWhere   = buildWhere();
+  const offset = page * PAGE_SIZE;
+
+  const [cntRes, rowsRes] = await Promise.all([
+    conn.query(`SELECT COUNT(*) AS n FROM 'data.parquet' WHERE ${lastWhere}`),
+    conn.query(`
+      SELECT case_number, case_title, court_date, hearing_time, calendar_matter, judge, ruling
+      FROM 'data.parquet' WHERE ${lastWhere}
+      ORDER BY court_date DESC, case_number
+      LIMIT ${PAGE_SIZE} OFFSET ${offset}
+    `),
+  ]);
+
+  lastCount = Number(cntRes.toArray()[0].n);
+  const rows = rowsRes.toArray();
+
+  renderTable(rows);
+  renderPagination(lastCount, page);
+  document.getElementById('result-info').textContent =
+    `${lastCount.toLocaleString()} result${lastCount !== 1 ? 's' : ''}` +
+    (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  const tbody = document.getElementById('tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="no-data">No rulings match your filters.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr data-idx="${i}">
+      <td class="col-date">${r.court_date ?? ''}</td>
+      <td class="col-time">${r.hearing_time ?? ''}</td>
+      <td class="col-case">${esc(r.case_number)}</td>
+      <td class="col-title"><div class="clip">${esc(r.case_title)}</div></td>
+      <td class="col-motion"><div class="clip">${esc(r.calendar_matter)}</div></td>
+      <td class="col-judge"><div class="clip">${esc(r.judge)}</div></td>
+    </tr>`).join('');
+
+  window._rows = rows;
+  tbody.querySelectorAll('tr').forEach(tr =>
+    tr.addEventListener('click', () => showModal(window._rows[+tr.dataset.idx]))
+  );
+}
+
+function renderPagination(total, page) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const el    = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  const near = [];
+  for (let i = Math.max(0, page - 3); i <= Math.min(pages - 1, page + 3); i++) near.push(i);
+  if (near[0] > 0) near.unshift(0, '…');
+  if (near[near.length - 1] < pages - 1) near.push('…', pages - 1);
+
+  el.innerHTML = [
+    `<button ${page === 0 ? 'disabled' : ''} data-p="${page - 1}">‹</button>`,
+    ...near.map(p => p === '…'
+      ? `<button disabled>…</button>`
+      : `<button class="${p === page ? 'active' : ''}" data-p="${p}">${+p + 1}</button>`),
+    `<button ${page >= pages - 1 ? 'disabled' : ''} data-p="${page + 1}">›</button>`,
+  ].join('');
+
+  el.querySelectorAll('button[data-p]').forEach(btn =>
+    btn.addEventListener('click', () => runQuery(+btn.dataset.p))
+  );
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+function showModal(r) {
+  document.getElementById('modal-title').textContent  = r.case_title ?? '';
+  document.getElementById('modal-meta').textContent   =
+    [r.case_number, r.court_date, r.hearing_time, r.judge].filter(Boolean).join(' · ');
+  document.getElementById('modal-motion').textContent = r.calendar_matter ?? '';
+  document.getElementById('modal-ruling').textContent = r.ruling ?? '';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target.id === 'overlay') closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Debounced events ─────────────────────────────────────────────────────────
+let timer;
+const debounce = fn => { clearTimeout(timer); timer = setTimeout(fn, 350); };
+
+document.getElementById('search').addEventListener('input',  () => debounce(() => runQuery(0)));
+dateFrom.addEventListener('change', () => runQuery(0));
+dateTo.addEventListener('change',   () => runQuery(0));
+judgeEl.addEventListener('change',  () => runQuery(0));
+
+// ── Initial load ─────────────────────────────────────────────────────────────
+await runQuery(0);
+</script>
+
+</body>
+</html>
