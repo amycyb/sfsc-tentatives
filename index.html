@@ -18,17 +18,22 @@
       background: #1a3a5c;
       color: white;
       padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
-    header h1 { font-size: 1.3rem; font-weight: 600; }
-    #stats { font-size: 0.82rem; opacity: 0.75; margin-top: 0.2rem; }
+    header h1 { font-size: 1.25rem; font-weight: 600; }
+    #stats { font-size: 0.82rem; opacity: 0.72; margin-top: 0.2rem; }
 
     .controls {
       background: white;
       border-bottom: 1px solid #ddd;
-      padding: 0.85rem 2rem;
+      padding: 0.75rem 2rem;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.6rem;
+      gap: 0.55rem;
       align-items: center;
     }
     .controls input, .controls select {
@@ -40,10 +45,35 @@
     }
     #search { flex: 1; min-width: 220px; }
     .date-range { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #555; }
+    #clear-btn {
+      padding: 0.38rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.82rem;
+      cursor: pointer;
+      color: #555;
+      white-space: nowrap;
+    }
+    #clear-btn:hover { background: #f0f5ff; border-color: #aac; color: #1a3a5c; }
 
-    main { padding: 1rem 2rem 3rem; }
+    main { padding: 0.85rem 2rem 3rem; }
 
-    #result-info { font-size: 0.82rem; color: #666; margin-bottom: 0.5rem; min-height: 1.2em; }
+    #result-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 1.6rem;
+      margin-bottom: 0.4rem;
+    }
+    #result-info { font-size: 0.82rem; color: #666; }
+    #query-spinner {
+      width: 1rem; height: 1rem;
+      border: 2px solid #ddd; border-top-color: #1a3a5c;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    #query-spinner.on { display: block; }
 
     table {
       width: 100%;
@@ -62,17 +92,26 @@
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
+      user-select: none;
+      white-space: nowrap;
     }
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { background: #214d78; }
+    th .sort-icon { opacity: 0.45; margin-left: 0.3rem; font-style: normal; }
+    th.sort-asc .sort-icon::after  { content: '▲'; opacity: 1; }
+    th.sort-desc .sort-icon::after { content: '▼'; opacity: 1; }
+    th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
+
     td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #eee; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tbody tr { cursor: pointer; transition: background 0.1s; }
     tbody tr:hover { background: #eef3fb; }
 
     .col-date  { white-space: nowrap; width: 95px; }
-    .col-time  { white-space: nowrap; width: 55px; color: #555; }
-    .col-case  { white-space: nowrap; width: 110px; font-family: monospace; font-size: 0.8rem; }
+    .col-time  { white-space: nowrap; width: 55px; color: #666; }
+    .col-case  { white-space: nowrap; width: 115px; font-family: monospace; font-size: 0.8rem; }
     .col-title { max-width: 200px; }
-    .col-motion{ max-width: 260px; }
+    .col-motion{ max-width: 270px; }
     .col-judge { width: 150px; }
 
     .clip {
@@ -85,8 +124,8 @@
     .no-data { text-align: center; padding: 2.5rem; color: #999; }
 
     #pagination {
-      display: flex; gap: 0.35rem; justify-content: center;
-      padding: 1rem 0; flex-wrap: wrap;
+      display: flex; gap: 0.3rem; justify-content: center;
+      padding: 0.85rem 0; flex-wrap: wrap;
     }
     #pagination button {
       padding: 0.28rem 0.6rem;
@@ -98,7 +137,7 @@
     }
     #pagination button.active { background: #1a3a5c; color: white; border-color: #1a3a5c; }
     #pagination button:hover:not(.active):not(:disabled) { background: #eef3fb; }
-    #pagination button:disabled { opacity: 0.4; cursor: default; }
+    #pagination button:disabled { opacity: 0.38; cursor: default; }
 
     /* Modal */
     .overlay {
@@ -109,25 +148,25 @@
     .overlay.open { display: flex; align-items: flex-start; justify-content: center; }
     .modal {
       background: white; border-radius: 8px;
-      max-width: 800px; width: 100%;
+      max-width: 820px; width: 100%;
       padding: 1.5rem; position: relative; margin: auto;
     }
-    .modal h2 { font-size: 1rem; margin-bottom: 0.2rem; padding-right: 2rem; }
-    .modal .meta { font-size: 0.78rem; color: #666; margin-bottom: 0.85rem; }
+    .modal h2 { font-size: 1rem; margin-bottom: 0.25rem; padding-right: 2rem; }
+    .modal .meta { font-size: 0.78rem; color: #888; margin-bottom: 0.85rem; }
     .modal .motion {
       font-size: 0.83rem; font-style: italic; color: #444;
-      background: #f7f8fa; border-radius: 4px;
-      padding: 0.5rem 0.75rem; margin-bottom: 0.85rem;
+      background: #f7f8fa; border-left: 3px solid #1a3a5c;
+      padding: 0.5rem 0.75rem; margin-bottom: 0.85rem; border-radius: 0 4px 4px 0;
     }
-    .modal .ruling { font-size: 0.875rem; line-height: 1.75; white-space: pre-wrap; }
+    .modal .ruling { font-size: 0.875rem; line-height: 1.8; white-space: pre-wrap; }
     .modal-close {
-      position: absolute; top: 1rem; right: 1rem;
+      position: absolute; top: 0.9rem; right: 0.9rem;
       background: none; border: none; font-size: 1.6rem;
-      cursor: pointer; color: #aaa; line-height: 1;
+      cursor: pointer; color: #aaa; line-height: 1; padding: 0.2rem;
     }
     .modal-close:hover { color: #444; }
 
-    /* Loading */
+    /* Loading / Error */
     #loading { text-align: center; padding: 4rem; color: #666; }
     .spinner {
       display: inline-block; width: 2rem; height: 2rem;
@@ -136,8 +175,18 @@
       margin-bottom: 0.75rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { font-size: 0.9rem; }
+    #loading .sub { font-size: 0.8rem; color: #aaa; margin-top: 0.3rem; }
 
-    @media (max-width: 680px) {
+    #error-box {
+      display: none;
+      background: #fff0f0; border: 1px solid #f5c6c6;
+      border-radius: 6px; padding: 1.25rem 1.5rem;
+      color: #7a2020; font-size: 0.875rem;
+    }
+    #error-box strong { display: block; margin-bottom: 0.4rem; }
+
+    @media (max-width: 700px) {
       header, .controls, main { padding-left: 0.75rem; padding-right: 0.75rem; }
       .col-time, .col-judge { display: none; }
     }
@@ -146,32 +195,43 @@
 <body>
 
 <header>
-  <h1>SF Superior Court — Dept 302 Tentative Rulings</h1>
-  <div id="stats">Loading…</div>
+  <div>
+    <h1>SF Superior Court — Dept 302 Tentative Rulings</h1>
+    <div id="stats">Loading…</div>
+  </div>
 </header>
 
-<div class="controls">
+<div class="controls" id="controls" style="display:none">
   <input type="search" id="search" placeholder="Search case number, title, or ruling text…">
   <div class="date-range">
     From <input type="date" id="date-from">
     to   <input type="date" id="date-to">
   </div>
   <select id="judge"><option value="">All judges</option></select>
+  <button id="clear-btn">Clear filters</button>
 </div>
 
 <main>
-  <div id="loading"><div class="spinner"></div><p>Initializing database…</p></div>
-  <div id="result-info" hidden></div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p id="load-msg">Downloading data…</p>
+    <p class="sub" id="load-sub"></p>
+  </div>
+  <div id="error-box"><strong>Failed to load data.</strong><span id="error-msg"></span></div>
+  <div id="result-bar" hidden>
+    <div id="result-info"></div>
+    <div id="query-spinner"></div>
+  </div>
   <div id="table-wrap" hidden>
     <table>
       <thead>
         <tr>
-          <th class="col-date">Date</th>
+          <th class="col-date sortable" data-col="court_date" data-dir="desc">Date<i class="sort-icon sort-desc"></i></th>
           <th class="col-time">Time</th>
-          <th class="col-case">Case #</th>
-          <th class="col-title">Case Title</th>
+          <th class="col-case sortable" data-col="case_number" data-dir="">Case #<i class="sort-icon"></i></th>
+          <th class="col-title sortable" data-col="case_title" data-dir="">Case Title<i class="sort-icon"></i></th>
           <th class="col-motion">Motion</th>
-          <th class="col-judge">Judge</th>
+          <th class="col-judge sortable" data-col="judge" data-dir="">Judge<i class="sort-icon"></i></th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -193,100 +253,150 @@
 <script type="module">
 import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/+esm';
 
+// ── State ─────────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 25;
-let conn, totalRows = 0, currentPage = 0, lastCount = 0, lastWhere = 'TRUE';
+let conn, totalRows = 0, currentPage = 0, lastCount = 0;
+let sortCol = 'court_date', sortDir = 'DESC';
 
-// ── Init DuckDB ──────────────────────────────────────────────────────────────
-const bundles = duckdb.getJsDelivrBundles();
-const bundle  = await duckdb.selectBundle(bundles);
-const workerUrl = URL.createObjectURL(
-  new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
-);
-const worker = new Worker(workerUrl);
-const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
-await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-URL.revokeObjectURL(workerUrl);
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const searchEl  = $('search');
+const dateFrom  = $('date-from');
+const dateTo    = $('date-to');
+const judgeEl   = $('judge');
+const loadMsg   = $('load-msg');
+const loadSub   = $('load-sub');
 
-const parquetUrl = new URL('./tentatives.parquet', window.location.href).href;
-await db.registerFileURL('data.parquet', parquetUrl, duckdb.DuckDBDataProtocol.HTTP, false);
-conn = await db.connect();
+// ── Init ──────────────────────────────────────────────────────────────────────
+try {
+  // 1. Fetch parquet directly (avoids HTTP protocol enum issues on GitHub Pages)
+  loadMsg.textContent = 'Downloading data…';
+  const res = await fetch('./tentatives.parquet');
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching tentatives.parquet`);
+  const buf = await res.arrayBuffer();
 
-// ── Stats ────────────────────────────────────────────────────────────────────
-const statsRes = await conn.query(
-  `SELECT COUNT(*) AS n, MIN(court_date) AS lo, MAX(court_date) AS hi FROM 'data.parquet'`
-);
-const s = statsRes.toArray()[0];
-totalRows = Number(s.n);
-document.getElementById('stats').textContent =
-  `${totalRows.toLocaleString()} rulings · ${s.lo} → ${s.hi}`;
+  // 2. Init DuckDB-WASM
+  loadMsg.textContent = 'Initializing database…';
+  const bundles  = duckdb.getJsDelivrBundles();
+  const bundle   = await duckdb.selectBundle(bundles);
+  const wUrl     = URL.createObjectURL(
+    new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+  );
+  const worker = new Worker(wUrl);
+  const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
+  await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+  URL.revokeObjectURL(wUrl);
 
-// ── Judges dropdown ──────────────────────────────────────────────────────────
-const judgesRes = await conn.query(
-  `SELECT DISTINCT judge FROM 'data.parquet' WHERE judge IS NOT NULL AND judge != '' ORDER BY judge`
-);
-const judgeEl = document.getElementById('judge');
-for (const row of judgesRes.toArray()) {
-  const opt = document.createElement('option');
-  opt.value = opt.textContent = row.judge;
-  judgeEl.appendChild(opt);
+  // 3. Register parquet buffer
+  await db.registerFileBuffer('data.parquet', new Uint8Array(buf));
+  conn = await db.connect();
+
+  // 4. Stats
+  const statsRes = await conn.query(
+    `SELECT COUNT(*) AS n, MIN(court_date) AS lo, MAX(court_date) AS hi FROM 'data.parquet'`
+  );
+  const s = statsRes.toArray()[0];
+  totalRows = Number(s.n);
+  $('stats').textContent = `${totalRows.toLocaleString()} rulings · ${s.lo} → ${s.hi}`;
+
+  // 5. Judges dropdown
+  const jr = await conn.query(
+    `SELECT DISTINCT judge FROM 'data.parquet' WHERE judge IS NOT NULL AND judge != '' ORDER BY judge`
+  );
+  for (const row of jr.toArray()) {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = row.judge;
+    judgeEl.appendChild(opt);
+  }
+
+  // 6. Default dates
+  dateFrom.value = s.lo;
+  dateTo.value   = s.hi;
+
+  // 7. Show UI
+  $('loading').hidden = true;
+  $('controls').style.display = '';
+  $('result-bar').hidden  = false;
+  $('table-wrap').hidden  = false;
+
+  // 8. Sort header wiring
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        sortDir = sortDir === 'DESC' ? 'ASC' : 'DESC';
+      } else {
+        sortCol = col;
+        sortDir = col === 'court_date' ? 'DESC' : 'ASC';
+      }
+      document.querySelectorAll('th.sortable').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+        h.querySelector('.sort-icon').className = 'sort-icon';
+      });
+      th.classList.add(sortDir === 'ASC' ? 'sort-asc' : 'sort-desc');
+      runQuery(0);
+    });
+  });
+
+  // 9. First load
+  await runQuery(0);
+
+} catch (err) {
+  $('loading').hidden = true;
+  const box = $('error-box');
+  box.style.display = 'block';
+  $('error-msg').textContent = ' ' + err.message;
+  console.error(err);
 }
 
-// ── Default date range ───────────────────────────────────────────────────────
-const dateFrom = document.getElementById('date-from');
-const dateTo   = document.getElementById('date-to');
-dateFrom.value = s.lo;
-dateTo.value   = s.hi;
-
-// ── Show UI ──────────────────────────────────────────────────────────────────
-document.getElementById('loading').hidden    = true;
-document.getElementById('table-wrap').hidden = false;
-document.getElementById('result-info').hidden = false;
-
-// ── Query ────────────────────────────────────────────────────────────────────
+// ── Query ─────────────────────────────────────────────────────────────────────
 function buildWhere() {
-  const search = document.getElementById('search').value.trim();
-  const from   = dateFrom.value;
-  const to     = dateTo.value;
-  const judge  = judgeEl.value;
-  const parts  = [];
-  if (from)   parts.push(`court_date >= '${from}'`);
-  if (to)     parts.push(`court_date <= '${to}'`);
-  if (judge)  parts.push(`judge = '${judge.replace(/'/g, "''")}'`);
-  if (search) {
-    const q = search.replace(/'/g, "''");
-    parts.push(`(case_number ILIKE '%${q}%' OR case_title ILIKE '%${q}%' OR ruling ILIKE '%${q}%')`);
-  }
+  const q     = searchEl.value.trim().replace(/'/g, "''");
+  const from  = dateFrom.value;
+  const to    = dateTo.value;
+  const judge = judgeEl.value;
+  const parts = [];
+  if (from)  parts.push(`court_date >= '${from}'`);
+  if (to)    parts.push(`court_date <= '${to}'`);
+  if (judge) parts.push(`judge = '${judge.replace(/'/g, "''")}'`);
+  if (q)     parts.push(`(case_number ILIKE '%${q}%' OR case_title ILIKE '%${q}%' OR ruling ILIKE '%${q}%')`);
   return parts.length ? parts.join(' AND ') : 'TRUE';
 }
 
 async function runQuery(page = 0) {
   currentPage = page;
-  lastWhere   = buildWhere();
+  const where  = buildWhere();
   const offset = page * PAGE_SIZE;
+  const qs = $('query-spinner');
+  qs.classList.add('on');
 
-  const [cntRes, rowsRes] = await Promise.all([
-    conn.query(`SELECT COUNT(*) AS n FROM 'data.parquet' WHERE ${lastWhere}`),
-    conn.query(`
-      SELECT case_number, case_title, court_date, hearing_time, calendar_matter, judge, ruling
-      FROM 'data.parquet' WHERE ${lastWhere}
-      ORDER BY court_date DESC, case_number
-      LIMIT ${PAGE_SIZE} OFFSET ${offset}
-    `),
-  ]);
+  try {
+    const [cntRes, rowsRes] = await Promise.all([
+      conn.query(`SELECT COUNT(*) AS n FROM 'data.parquet' WHERE ${where}`),
+      conn.query(`
+        SELECT case_number, case_title, court_date, hearing_time, calendar_matter, judge, ruling
+        FROM 'data.parquet' WHERE ${where}
+        ORDER BY ${sortCol} ${sortDir}, case_number ASC
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
+      `),
+    ]);
 
-  lastCount = Number(cntRes.toArray()[0].n);
-  const rows = rowsRes.toArray();
+    lastCount = Number(cntRes.toArray()[0].n);
+    const rows = rowsRes.toArray();
 
-  renderTable(rows);
-  renderPagination(lastCount, page);
-  document.getElementById('result-info').textContent =
-    `${lastCount.toLocaleString()} result${lastCount !== 1 ? 's' : ''}` +
-    (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+    renderTable(rows);
+    renderPagination(lastCount, page);
+    $('result-info').textContent =
+      `${lastCount.toLocaleString()} result${lastCount !== 1 ? 's' : ''}` +
+      (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+  } finally {
+    qs.classList.remove('on');
+  }
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// ── Render table ──────────────────────────────────────────────────────────────
 function renderTable(rows) {
-  const tbody = document.getElementById('tbody');
+  const tbody = $('tbody');
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="no-data">No rulings match your filters.</td></tr>';
     return;
@@ -307,15 +417,16 @@ function renderTable(rows) {
   );
 }
 
+// ── Pagination ────────────────────────────────────────────────────────────────
 function renderPagination(total, page) {
   const pages = Math.ceil(total / PAGE_SIZE);
-  const el    = document.getElementById('pagination');
+  const el    = $('pagination');
   if (pages <= 1) { el.innerHTML = ''; return; }
 
   const near = [];
   for (let i = Math.max(0, page - 3); i <= Math.min(pages - 1, page + 3); i++) near.push(i);
-  if (near[0] > 0) near.unshift(0, '…');
-  if (near[near.length - 1] < pages - 1) near.push('…', pages - 1);
+  if (near[0] > 0)                          near.unshift(0, '…');
+  if (near[near.length - 1] < pages - 1)   near.push('…', pages - 1);
 
   el.innerHTML = [
     `<button ${page === 0 ? 'disabled' : ''} data-p="${page - 1}">‹</button>`,
@@ -330,39 +441,47 @@ function renderPagination(total, page) {
   );
 }
 
-// ── Modal ────────────────────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 function showModal(r) {
-  document.getElementById('modal-title').textContent  = r.case_title ?? '';
-  document.getElementById('modal-meta').textContent   =
-    [r.case_number, r.court_date, r.hearing_time, r.judge].filter(Boolean).join(' · ');
-  document.getElementById('modal-motion').textContent = r.calendar_matter ?? '';
-  document.getElementById('modal-ruling').textContent = r.ruling ?? '';
-  document.getElementById('overlay').classList.add('open');
+  $('modal-title').textContent  = r.case_title ?? '';
+  $('modal-meta').textContent   = [r.case_number, r.court_date, r.hearing_time, r.judge].filter(Boolean).join(' · ');
+  $('modal-motion').textContent = r.calendar_matter ?? '';
+  $('modal-ruling').textContent = r.ruling ?? '';
+  $('overlay').classList.add('open');
 }
 
-function closeModal() { document.getElementById('overlay').classList.remove('open'); }
-document.getElementById('modal-close').addEventListener('click', closeModal);
-document.getElementById('overlay').addEventListener('click', e => {
-  if (e.target.id === 'overlay') closeModal();
-});
+function closeModal() { $('overlay').classList.remove('open'); }
+$('modal-close').addEventListener('click', closeModal);
+$('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function esc(s) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// ── Clear filters ─────────────────────────────────────────────────────────────
+$('clear-btn').addEventListener('click', async () => {
+  searchEl.value  = '';
+  judgeEl.value   = '';
+  // Reset dates to full range
+  const statsRes = await conn.query(
+    `SELECT MIN(court_date) AS lo, MAX(court_date) AS hi FROM 'data.parquet'`
+  );
+  const s = statsRes.toArray()[0];
+  dateFrom.value = s.lo;
+  dateTo.value   = s.hi;
+  runQuery(0);
+});
 
-// ── Debounced events ─────────────────────────────────────────────────────────
+// ── Events ────────────────────────────────────────────────────────────────────
 let timer;
 const debounce = fn => { clearTimeout(timer); timer = setTimeout(fn, 350); };
 
-document.getElementById('search').addEventListener('input',  () => debounce(() => runQuery(0)));
-dateFrom.addEventListener('change', () => runQuery(0));
-dateTo.addEventListener('change',   () => runQuery(0));
-judgeEl.addEventListener('change',  () => runQuery(0));
+searchEl.addEventListener('input',    () => debounce(() => runQuery(0)));
+dateFrom.addEventListener('change',   () => runQuery(0));
+dateTo.addEventListener('change',     () => runQuery(0));
+judgeEl.addEventListener('change',    () => runQuery(0));
 
-// ── Initial load ─────────────────────────────────────────────────────────────
-await runQuery(0);
+// ── Util ──────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 </script>
 
 </body>
