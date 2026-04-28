@@ -34,16 +34,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
 async function checkForUpdates() {
   const owner = 'aimesy', repo = 'sfsc-tentatives';
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`,
+    `https://api.github.com/repos/${owner}/${repo}/contents/sfsc-extension.zip`,
     { headers: { 'X-GitHub-Api-Version': '2022-11-28' } }
   );
   if (!res.ok) return { hasUpdate: false };
-  const [commit] = await res.json();
-  const latestSha = commit.sha;
-  const stored = await new Promise(r => chrome.storage.local.get(['_lastCommitSha'], r));
-  const lastSha = stored._lastCommitSha;
+  const { sha: latestSha } = await res.json();
+  const stored = await new Promise(r => chrome.storage.local.get(['_lastExtensionSha'], r));
+  const lastSha = stored._lastExtensionSha;
   if (latestSha !== lastSha) {
-    await new Promise(r => chrome.storage.local.set({ _lastCommitSha: latestSha }, r));
+    await new Promise(r => chrome.storage.local.set({ _lastExtensionSha: latestSha }, r));
     return { hasUpdate: true, latestSha };
   }
   return { hasUpdate: false };
