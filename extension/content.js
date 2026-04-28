@@ -103,13 +103,6 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   const formatted = `${m}/${d}/${y}`;
   const form = input.closest('form');
 
-  if (form && form.method.toUpperCase() !== 'POST') {
-    const url = new URL(form.action);
-    url.searchParams.set(input.name || 'DatePick', formatted);
-    window.location.href = url.toString();
-    return { pending: true };
-  }
-
   input.value = formatted;
   input.dispatchEvent(new Event('input',  { bubbles: true }));
   input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -135,8 +128,8 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
 function diagnose() {
   const input = findDateInput();
   const form  = input?.closest('form');
-  const btn   = form?.querySelector('input[type="submit"], button[type="submit"]')
-             ?? document.querySelector('input[type="submit"], button[type="submit"]');
+  const btn   = form?.querySelector('input[type="submit"], input[type="image"], button[type="submit"]')
+             ?? document.querySelector('input[type="submit"], input[type="image"], button[type="submit"]');
 
   const allForms = [...document.querySelectorAll('form')].map(f => ({
     action: f.action,
