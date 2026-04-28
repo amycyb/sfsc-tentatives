@@ -237,13 +237,17 @@
           </div>
         </div>
         <div>
-          <label>To</label>
+          <label>To <span style="font-weight:400;color:#aaa">(blank = today)</span></label>
           <div class="date-wrap">
-            <input type="text" id="bulk-to" placeholder="YYYY-MM-DD" maxlength="10">
+            <input type="text" id="bulk-to" placeholder="YYYY-MM-DD or blank">
             <button class="cal-btn" id="cal-to" title="Open calendar">📅</button>
             <input type="date" id="bulk-to-picker" class="hidden-picker" tabindex="-1">
           </div>
         </div>
+      </div>
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">
+        <button id="jump-first" style="flex:1;background:#f0f5ff;color:#1a3a5c;font-size:0.72rem;font-weight:500;padding:0.25rem;margin:0" title="Jump to earliest unscanned weekday">⏮ First gap</button>
+        <button id="jump-last"  style="flex:1;background:#f0f5ff;color:#1a3a5c;font-size:0.72rem;font-weight:500;padding:0.25rem;margin:0" title="Resume from day after last commit">⏭ Resume</button>
       </div>
       <div class="bulk-row" style="margin-bottom:0.4rem">
         <div style="flex:1">

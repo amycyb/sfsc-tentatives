@@ -98,6 +98,83 @@ function makeTabLoadPromise(tabId, timeout = 12_000) {
   return { promise, cancel };
 }
 
+// ── GitHub date helpers ───────────────────────────────────────────────────────
+
+function nextWeekday(isoDate) {
+  const d = new Date(isoDate + 'T12:00:00');
+  d.setDate(d.getDate() + 1);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+async function fetchScannedDates(s) {
+  const [owner, repo] = s.repo.split('/');
+  // Determine department from current page if possible, default to 302
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  let dept = '302';
+  if (tab?.url?.includes('webapps.sftc.org')) {
+    try {
+      const results = await new Promise(resolve =>
+        chrome.tabs.sendMessage(tab.id, { action: 'scrape' }, r =>
+          resolve(chrome.runtime.lastError ? null : r)
+        )
+      );
+      if (results?.department) dept = results.department;
+    } catch (_) {}
+  }
+
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/raw/dept${dept}?ref=${s.branch || 'master'}`,
+    { headers: { Authorization: `Bearer ${s.token}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+  );
+  if (!res.ok) return null;
+  const files = await res.json();
+  if (!Array.isArray(files)) return null;
+  return files
+    .map(f => f.name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1])
+    .filter(Boolean)
+    .sort();
+}
+
+async function jumpToFirstGap() {
+  const s = await loadSettings();
+  const err = validateSettings(s);
+  if (err) { setStatus(err, 'error'); return; }
+  setStatus('Fetching scanned dates…', 'loading');
+  const dates = await fetchScannedDates(s);
+  if (!dates?.length) { setStatus('No scanned dates found.', 'warn'); return; }
+  const scanned = new Set(dates);
+  const min = dates[0], max = dates[dates.length - 1];
+  // Find first weekday in range that's missing
+  const d = new Date(min + 'T12:00:00');
+  const end = new Date(max + 'T12:00:00');
+  while (d <= end) {
+    const iso = d.toISOString().slice(0, 10);
+    if ((d.getDay() !== 0 && d.getDay() !== 6) && !scanned.has(iso)) {
+      $('bulk-from').value = iso; $('bulk-from-picker').value = iso;
+      $('bulk-to').value   = max; $('bulk-to-picker').value   = max;
+      setStatus(`First gap: ${iso}`, 'success');
+      return;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  setStatus('No gaps found in scanned range.', 'success');
+}
+
+async function jumpToResume() {
+  const s = await loadSettings();
+  const err = validateSettings(s);
+  if (err) { setStatus(err, 'error'); return; }
+  setStatus('Fetching last scanned date…', 'loading');
+  const dates = await fetchScannedDates(s);
+  if (!dates?.length) { setStatus('No scanned dates found.', 'warn'); return; }
+  const last = dates[dates.length - 1];
+  const from = nextWeekday(last);
+  $('bulk-from').value = from; $('bulk-from-picker').value = from;
+  $('bulk-to').value   = '';   $('bulk-to-picker').value   = '';
+  setStatus(`Resuming from ${from} (To = today)`, 'success');
+}
+
 // ── Date inputs (text + hidden calendar picker) ───────────────────────────────
 
 function wireDateInput(textId, pickerId, calBtnId) {
@@ -283,9 +360,9 @@ $('send-btn').addEventListener('click', async () => {
 
 $('bulk-btn').addEventListener('click', async () => {
   const from = parseDate($('bulk-from').value);
-  const to   = parseDate($('bulk-to').value);
-  if (!from || !to || from > to) {
-    setStatus('Enter a valid date range (YYYY-MM-DD or MM/DD/YYYY).', 'warn');
+  const to   = parseDate($('bulk-to').value) || new Date().toISOString().slice(0, 10);
+  if (!from || from > to) {
+    setStatus('Enter a valid start date (YYYY-MM-DD or MM/DD/YYYY).', 'warn');
     return;
   }
 
@@ -377,6 +454,8 @@ $('bulk-btn').addEventListener('click', async () => {
 });
 
 $('bulk-stop').addEventListener('click', () => { bulkRunning = false; });
+$('jump-first').addEventListener('click', jumpToFirstGap);
+$('jump-last').addEventListener('click',  jumpToResume);
 
 // ── Diagnose ──────────────────────────────────────────────────────────────────
 

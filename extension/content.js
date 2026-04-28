@@ -55,47 +55,44 @@ function scrape() {
 // ── Auto-navigation helpers ───────────────────────────────────────────────────
 
 function findDateInput() {
-  // 1. Find by visible label text "Court Date" — handles label, td, th, p, span, div
-  for (const el of document.querySelectorAll('label, td, th, p, span, div')) {
-    const txt = el.textContent;
-    // Skip very large containers (whole page sections)
-    if (txt.length > 300) continue;
-    if (!/court\s*date/i.test(txt)) continue;
+  // 1. Specific known selectors — most reliable, check first
+  for (const sel of [
+    'input[name="DatePick"]', 'input[id="DatePick"]',
+    'input.hasDatepicker',
+    'input[name="HearingDt"]', 'input[name="hearingDt"]',
+  ]) {
+    const el = document.querySelector(sel);
+    if (el) return el;
+  }
 
-    // <label for="...">
+  // 2. Find by "Court Date" label text — only leaf/row elements, not div containers
+  //    (div containers may match but querySelector returns the wrong first input)
+  for (const el of document.querySelectorAll('label, td, th, p')) {
+    if (!/court\s*date/i.test(el.textContent)) continue;
+
     if (el.tagName === 'LABEL' && el.htmlFor) {
       const inp = document.getElementById(el.htmlFor);
-      if (inp && inp.tagName === 'INPUT') return inp;
+      if (inp) return inp;
     }
-    // Input nested inside the same element
-    const nested = el.querySelector('input[type="text"]');
+    const nested = el.querySelector('input');
     if (nested) return nested;
-    // Input in the immediately following sibling element
     const sibling = el.nextElementSibling;
-    if (sibling && sibling.tagName === 'INPUT') return sibling;
     if (sibling) {
-      const inp = sibling.querySelector('input[type="text"]');
+      const inp = sibling.tagName === 'INPUT' ? sibling : sibling.querySelector('input');
       if (inp) return inp;
     }
   }
 
-  // 2. Try common name/id patterns
-  for (const sel of [
-    'input[name="DatePick"]',   'input[id="DatePick"]',
-    'input[name="HearingDt"]',  'input[name="hearingDt"]',
-    'input[name*="Date" i]',    'input[id*="date" i]',
-    'input[type="date"]',
-  ]) {
+  // 3. Generic name/id patterns
+  for (const sel of ['input[name*="Date" i]', 'input[id*="date" i]', 'input[type="date"]']) {
     const el = document.querySelector(sel);
-    if (el && el.tagName === 'INPUT') return el;
+    if (el) return el;
   }
 
-  // 3. Last resort: first text input in a form that has a submit button
+  // 4. Last resort: first text input in a form
   for (const form of document.querySelectorAll('form')) {
-    if (form.querySelector('input[type="submit"], button[type="submit"]')) {
-      const t = form.querySelector('input[type="text"]');
-      if (t) return t;
-    }
+    const t = form.querySelector('input[type="text"]');
+    if (t) return t;
   }
   return null;
 }
