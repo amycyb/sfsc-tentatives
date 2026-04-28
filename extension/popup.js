@@ -28,6 +28,18 @@ function validateSettings(s) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Accepts YYYY-MM-DD, MM/DD/YYYY, M/D/YYYY, MM-DD-YYYY → returns YYYY-MM-DD or null
+function parseDate(str) {
+  if (!str) return null;
+  str = str.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const slash = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) return `${slash[3]}-${slash[1].padStart(2,'0')}-${slash[2].padStart(2,'0')}`;
+  const dash = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dash)  return `${dash[3]}-${dash[1].padStart(2,'0')}-${dash[2].padStart(2,'0')}`;
+  return null;
+}
+
 // Returns ISO date strings (YYYY-MM-DD) for every weekday in [from, to]
 function weekdaysBetween(from, to) {
   const dates = [];
@@ -288,4 +300,17 @@ $('save-btn').addEventListener('click', () => {
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+
+// Paste normalization: accept MM/DD/YYYY (and variants) into date inputs
+['bulk-from', 'bulk-to'].forEach(id => {
+  $( id).addEventListener('paste', e => {
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const iso = parseDate(text);
+    if (iso) {
+      e.preventDefault();
+      e.target.value = iso;
+    }
+  });
+});
+
 init();
