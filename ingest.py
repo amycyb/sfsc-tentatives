@@ -17,6 +17,7 @@ JSON formats accepted:
 
 import sys
 import json
+import re
 import sqlite3
 import hashlib
 from pathlib import Path
@@ -35,6 +36,32 @@ except ImportError:
 HERE    = Path(__file__).parent
 PARQUET = HERE / "tentatives.parquet"
 DB_PATH = HERE / "tentatives.db"
+
+# Load judge code → name mapping from judges.json
+_judges_path = HERE / "judges.json"
+if _judges_path.exists():
+    _judge_db = json.loads(_judges_path.read_text())
+    JUDGE_CODE_MAP = {k: v["name"] for k, v in _judge_db.get("code_map", {}).items()}
+else:
+    JUDGE_CODE_MAP = {}
+
+
+def extract_judge(ruling_text):
+    if not ruling_text:
+        return None
+    m = re.search(r'=\(?(?:\d+)/([A-Za-z]+)\)?\.?\s*$', ruling_text)
+    if not m:
+        return None
+    code = m.group(1).upper()
+    if code == 'JPT':
+        pt = re.search(
+            r'Pro Tem Judge\s+([\w.]+(?:\s+[\w.]+)*?)(?:,|;|\s+a member|\s+has been)',
+            ruling_text, re.IGNORECASE
+        )
+        if pt:
+            return f"Judge Pro Tem: {pt.group(1).strip()}"
+        return "Judge Pro Tem"
+    return JUDGE_CODE_MAP.get(code)
 
 COLUMNS = ["department", "case_number", "case_title", "court_date", "hearing_time",
            "calendar_matter", "judge", "ruling", "row_hash"]
@@ -156,6 +183,9 @@ def load_json(path):
     rows = []
     for rec in records:
         court_date_raw = rec.get("Court Date", "")
+        ruling_text    = rec.get("Rulings", "").strip() or None
+        # Use explicit Judge field if present (scraped by extension), else derive from code
+        judge = rec.get("Judge") or extract_judge(ruling_text)
         rows.append({
             "department":      department,
             "case_number":     rec.get("Case Number", "").strip() or None,
@@ -163,8 +193,8 @@ def load_json(path):
             "court_date":      normalize_date(court_date_raw),
             "hearing_time":    normalize_time(court_date_raw),
             "calendar_matter": rec.get("Calendar Matter", "").strip() or None,
-            "judge":           None,
-            "ruling":          rec.get("Rulings", "").strip() or None,
+            "judge":           judge,
+            "ruling":          ruling_text,
         })
     return rows
 

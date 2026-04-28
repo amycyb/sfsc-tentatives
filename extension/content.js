@@ -1,6 +1,49 @@
 // Scrapes the SFSC tentative rulings page and returns structured data.
 // Runs on: https://webapps.sftc.org/tr/tr.dll*
 
+// Judge code → full name (derived from sftc-judges-roster-alpha-public-022024.pdf)
+const JUDGE_MAP = {
+  RBU: 'Richard B. Ulmer Jr.',    RCE: 'Rochelle C. East',
+  CK:  'Curtis E.A. Karnow',      RCD: 'Richard C. Darwin',
+  JMQ: 'Joseph M. Quinn',         EHG: 'Ernest H. Goldsmith',
+  EG:  'Ernest H. Goldsmith',     JPT: 'Judge Pro Tem',
+  MB:  'Michael Begert',          SRB: 'Suzanne Ramos Bolanos',
+  SMB: 'Susan M. Breall',         TMC: 'Teresa M. Caffese',
+  BEC: 'Bruce E. Chan',           RCC: 'Roger C. Chan',
+  AYC: 'Andrew Y.S. Cheng',       AMC: 'A. Marisa Chun',
+  LC:  'Linda Colfax',            BC:  'Brendan Conroy',
+  AC:  'Anne Costin',             CC:  'Charles Crompton',
+  HMD: 'Harry M. Dorfman',        MEE: 'Maria E. Evangelista',
+  SKF: 'Samuel K. Feng',          BLF: 'Brian L. Ferrall',
+  ERF: 'Eric R. Fleming',         DAF: 'Daniel A. Flores',
+  SJF: 'Simon J. Frankel',        CG:  'Carolyn Gold',
+  ARG: 'Alexandra Robert Gordon', CFH: 'Charles F. Haines',
+  CH:  'Chris Hite',              VMH: 'Victor M. Hwang',
+  KK:  'Kathleen Kelly',          ACM: 'Anne-Christine Massullo',
+  MM:  'Michael McNaughton',      RCM: 'Ross C. Moody',
+  SMM: 'Stephen M. Murphy',       VP:  'Vedica Puri',
+  MJR: 'Murlene J. Randle',       SMR: 'Sharon M. Reardon',
+  MR:  'Michael Rhoads',          RR:  'Russ Roeca',
+  JSR: 'Jeffrey S. Ross',         GCS: 'Gerardo C. Sandoval',
+  EPS: 'Ethan P. Schulman',       PST: 'Patrick S. Thompson',
+  MT:  'Michelle Tong',           CV:  'Christine Van Aken',
+  RLW: 'Rebecca L. Wightman',     MFW: 'Monica F. Wiley',
+  KW:  'Kenneth Wine',            MEW: 'Mary E. Wiss',
+  GLW: 'Garrett L. Wong',         BCW: 'Braden C. Woods',
+};
+
+function extractJudge(rulingText) {
+  const m = rulingText.match(/=\(?(?:\d+)\/([A-Za-z]+)\)?\.?\s*$/);
+  if (!m) return null;
+  const code = m[1].toUpperCase();
+  if (code === 'JPT') {
+    const pt = rulingText.match(/Pro Tem Judge\s+([\w.]+(?:\s+[\w.]+)*?)(?:,|;|\s+a member|\s+has been)/i);
+    if (pt) return `Judge Pro Tem: ${pt[1].trim()}`;
+    return 'Judge Pro Tem';
+  }
+  return JUDGE_MAP[code] || null;
+}
+
 function scrape() {
   const container = document.getElementById('resultsRulings');
   if (!container) {
@@ -42,6 +85,14 @@ function scrape() {
     }
   }
   if (current['Case Number']) rulings.push({ ...current });
+
+  // Auto-populate Judge from the code at the end of each ruling
+  for (const r of rulings) {
+    if (r.Rulings) {
+      const judge = extractJudge(r.Rulings);
+      if (judge) r.Judge = judge;
+    }
+  }
 
   return {
     department,
