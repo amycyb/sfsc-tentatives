@@ -96,7 +96,7 @@ function courtDate(rulings) {
 
 async function commitToGitHub({ token, owner, repo, branch, data }) {
   const { department, scraped_at, rulings } = data;
-  const date = courtDate(rulings);
+  const date = data._date || courtDate(rulings);
   const time = new Date(scraped_at).toISOString().slice(11, 19).replace(/:/g, '');
   const path = `raw/dept${department}/${date}-${time}.json`;
 
@@ -255,15 +255,15 @@ async function bulkHandleResult(job, data) {
     return;
   }
 
-  if (!data || data.error) {
+  if (!data || data.error || data.pending) {
     update.errors++;
-  } else if (!data.rulings?.length) {
-    update.skipped++;
   } else {
     try {
       const { token, repo, branch } = job.settings;
       const [owner, repoName] = repo.split('/');
-      const res = await commitToGitHub({ token, owner, repo: repoName, branch, data });
+      // Always commit, even for 0 rulings — the file marks the date as scanned.
+      // Inject _date so courtDate() uses the searched date when rulings is empty.
+      const res = await commitToGitHub({ token, owner, repo: repoName, branch, data: { ...data, _date: job.currentDate } });
       if (res.error)          update.errors++;
       else if (res.duplicate) update.skipped++;
       else                    update.committed++;
