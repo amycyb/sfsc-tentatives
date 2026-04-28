@@ -318,6 +318,10 @@ async function init() {
       setStatus('Could not read page. Refresh and try again.', 'error');
       return;
     }
+    if (result.sessionExpired) {
+      setStatus('Session has expired. Please log in to the SFSC page again.', 'error');
+      return;
+    }
     if (result.error) { setStatus(result.error, 'warn'); return; }
 
     scrapedData = result;

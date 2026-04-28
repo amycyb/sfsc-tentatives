@@ -61,6 +61,10 @@ function extractJudge(rulingText) {
 }
 
 function scrape() {
+  if (/session\s+has\s+expired|your\s+session\s+(has\s+)?expired|session\s+timed?\s+out/i.test(document.body?.innerText || '')) {
+    return { sessionExpired: true };
+  }
+
   const container = document.getElementById('resultsRulings');
   if (!container) {
     return { error: 'No results block found. Run a search on this page first.' };

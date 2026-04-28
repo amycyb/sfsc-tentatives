@@ -249,6 +249,13 @@ async function bulkScrapeAfterLoad(job) {
 async function bulkHandleResult(job, data) {
   const update = { ...job, waitingForTab: false };
 
+  if (data?.sessionExpired) {
+    update.running = false;
+    update.fatalError = 'Session has expired. Please log in again and Resume.';
+    await chrome.storage.local.set({ _bulkJob: update });
+    return;
+  }
+
   if (!data || data.error) {
     update.errors++;
   } else if (!data.rulings?.length) {
