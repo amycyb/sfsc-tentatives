@@ -176,9 +176,29 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
 
   if (jq && jq(input).data('datepicker')) {
-    // jQuery UI datepicker: set directly via the value and trigger change
-    jq(input).val(dateStr);
-    jq(input).trigger('change');
+    try {
+      const dpInst = jq(input).data('datepicker');
+      // Format the date using the datepicker's own configured format (e.g. mm/dd/yy).
+      // val() alone doesn't update the picker's internal state, so the onSelect callback
+      // (which the site uses to navigate with the correct URL params) gets the wrong date.
+      const fmt = dpInst.settings.dateFormat
+        || (jq.datepicker._defaults && jq.datepicker._defaults.dateFormat)
+        || 'mm/dd/yy';
+      const formatted = jq.datepicker.formatDate(fmt, new Date(dateStr + 'T12:00:00'));
+      jq(input).val(formatted);
+      // Invoke onSelect directly — this is what the calendar fires on user pick, and it
+      // knows how to build the navigation URL (including SessionID and other params).
+      const onSelect = dpInst.settings.onSelect;
+      if (typeof onSelect === 'function') {
+        onSelect.call(jq(input)[0], formatted, dpInst);
+      } else {
+        jq(input).trigger('change');
+      }
+    } catch {
+      // Datepicker API unavailable — fall back to raw val + change
+      jq(input).val(dateStr);
+      jq(input).trigger('change');
+    }
   } else {
     // Fallback: set ISO string directly (matches the expected yy-mm-dd format)
     input.value = dateStr;
@@ -207,9 +227,24 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   }
 
   const btn = findSearchButton(form) ?? findSearchButton(document);
-  if (btn)       btn.click();
-  else if (form) form.submit();
-  else           return { error: 'No submit button or auto-search found.' };
+  if (btn) {
+    btn.click();
+  } else if (form) {
+    // form.submit() on a GET form strips query params from the action URL, losing
+    // session tokens like SessionID. Navigate to the action URL instead, copying
+    // all existing params and appending the current form field values.
+    try {
+      const actionUrl = new URL(form.action);
+      for (const el of form.elements) {
+        if (el.name) actionUrl.searchParams.set(el.name, el.value);
+      }
+      window.location.href = actionUrl.toString();
+    } catch {
+      form.submit();
+    }
+  } else {
+    return { error: 'No submit button or auto-search found.' };
+  }
 
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
