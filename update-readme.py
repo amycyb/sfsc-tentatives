@@ -74,43 +74,62 @@ python update-readme.py
 
 """
 
-def missing_weekdays(min_date: str, max_date: str, checked: set) -> list[str]:
+def find_gap_runs(min_date: str, max_date: str, checked: set) -> list[tuple[str, str]]:
+    """Returns (start, end) tuples for each gap of missing weekdays.
+
+    A gap ends only when a scanned weekday is encountered — weekends do not
+    break a gap, so a multi-week outage appears as a single range.
+    """
     d   = date.fromisoformat(min_date)
     end = date.fromisoformat(max_date)
-    out = []
+    runs = []
+    run_start = run_end = None
     while d <= end:
-        if d.weekday() < 5 and d.isoformat() not in checked:
-            out.append(d.isoformat())
+        if d.weekday() < 5:
+            if d.isoformat() not in checked:
+                if run_start is None:
+                    run_start = d.isoformat()
+                run_end = d.isoformat()
+            else:
+                if run_start is not None:
+                    runs.append((run_start, run_end))
+                    run_start = run_end = None
+        # Weekend days are ignored — they don't start or end a gap
         d += timedelta(days=1)
-    return out
+    if run_start is not None:
+        runs.append((run_start, run_end))
+    return runs
 
-def format_missing(dates: list[str]) -> str:
-    if not dates:
+def format_gaps(runs: list[tuple[str, str]]) -> str:
+    if not runs:
         return '_None — all weekdays in range are accounted for._'
-    chunks = [dates[i:i+12] for i in range(0, len(dates), 12)]
-    return '\n\n'.join(', '.join(c) for c in chunks)
+    lines = []
+    for start, end in runs:
+        lines.append(f'- {start}' if start == end else f'- {start} → {end}')
+    return '\n'.join(lines)
 
 def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
-    name   = DEPT_NAMES.get(dept, f'Department {dept}')
-    count  = len(df_dept)
-    dates  = sorted(df_dept['court_date'].unique())
-    min_d  = dates[0]
-    max_d  = dates[-1]
+    name    = DEPT_NAMES.get(dept, f'Department {dept}')
+    count   = len(df_dept)
+    dates   = sorted(df_dept['court_date'].unique())
+    min_d   = dates[0]
+    max_d   = dates[-1]
     checked = set(dates)
 
-    missing = missing_weekdays(min_d, max_d, checked)
-    n_miss  = len(missing)
+    gaps   = find_gap_runs(min_d, max_d, checked)
+    n_gaps = len(gaps)
 
-    summary = f'**{name}** &nbsp;·&nbsp; {count:,} rulings &nbsp;·&nbsp; {min_d} → {max_d} &nbsp;·&nbsp; {n_miss} missing weekdays'
+    summary = (f'**{name}** &nbsp;·&nbsp; {count:,} rulings'
+               f' &nbsp;·&nbsp; Latest: {max_d}'
+               f' &nbsp;·&nbsp; {n_gaps} gap{"s" if n_gaps != 1 else ""}')
 
     body = f"""\
 
-{count:,} tentative rulings from {min_d} to {max_d}.
-Civil law and motion calendar; missing dates are court holidays or non-hearing days.
+{count:,} tentative rulings. Latest: {max_d}.
 
-### Missing dates ({n_miss})
+### Gaps ({n_gaps})
 
-{format_missing(missing)}
+{format_gaps(gaps)}
 
 """
 

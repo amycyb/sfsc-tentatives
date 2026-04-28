@@ -9,8 +9,8 @@ function scrape() {
 
   const countEl = document.getElementById('resultsCount');
   const totalText = countEl ? countEl.textContent : '';
-  const totalMatch = totalText.match(/\d+/);
-  const reportedTotal = totalMatch ? parseInt(totalMatch[0]) : null;
+  const totalMatch = totalText.match(/Total Records Found\s+(\d+)/i);
+  const reportedTotal = totalMatch ? parseInt(totalMatch[1]) : null;
 
   const h4 = document.querySelector('h4');
   let department = '302';
