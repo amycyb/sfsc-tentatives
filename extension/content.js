@@ -176,9 +176,8 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
 
   if (jq && jq(input).data('datepicker')) {
-    // datepicker('setDate') updates internal state and all hidden fields;
-    // val() alone only changes the display text and leaves the picker out of sync.
-    jq(input).datepicker('setDate', new Date(dateStr + 'T12:00:00'));
+    // jQuery UI datepicker: set directly via the value and trigger change
+    jq(input).val(dateStr);
     jq(input).trigger('change');
   } else {
     // Fallback: set ISO string directly (matches the expected yy-mm-dd format)
