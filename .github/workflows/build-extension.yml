@@ -15,7 +15,7 @@ jobs:
 
       - name: Build ZIP
         run: |
-          zip -r sfsc-extension.zip extension/manifest.json extension/popup.html extension/popup.js extension/content.js
+          cd extension && zip -r ../sfsc-extension.zip . && cd ..
 
       - name: Commit and push ZIP
         run: |
