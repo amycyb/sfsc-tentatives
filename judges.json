@@ -48,6 +48,7 @@
     "JSR": { "name": "Jeffrey S. Ross",          "dept": "27"    },
     "GCS": { "name": "Gerardo C. Sandoval",      "dept": "514"   },
     "EPS": { "name": "Ethan P. Schulman",        "dept": "304"   },
+    "ESP": { "name": "Ethan P. Schulman",        "dept": "304"   },
     "PST": { "name": "Patrick S. Thompson",      "dept": "12"    },
     "MT":  { "name": "Michelle Tong",            "dept": "404"   },
     "CV":  { "name": "Christine Van Aken",       "dept": "20"    },
@@ -56,7 +57,31 @@
     "KW":  { "name": "Kenneth Wine",             "dept": "9"     },
     "MEW": { "name": "Mary E. Wiss",             "dept": "305"   },
     "GLW": { "name": "Garrett L. Wong",          "dept": "504"   },
-    "BCW": { "name": "Braden C. Woods",          "dept": "502"   }
+    "BCW": { "name": "Braden C. Woods",          "dept": "502"   },
+
+    "RU":   { "name": "Richard B. Ulmer Jr.",   "dept": "302"   },
+    "RE":   { "name": "Rochelle C. East",        "dept": "301"   },
+    "CEK":  { "name": "Curtis E.A. Karnow",      "dept": "611"   },
+    "JQ":   { "name": "Joseph M. Quinn",         "dept": "606"   },
+    "SB":   { "name": "Suzanne Ramos Bolanos",   "dept": "303"   },
+    "AYSC": { "name": "Andrew Y.S. Cheng",       "dept": "613"   },
+
+    "BH":  { "name": "Judge Pro Tem: Bruce Highman",        "dept": "506", "pro_tem": true },
+    "DM":  { "name": "Judge Pro Tem: David McDonald",       "dept": "506", "pro_tem": true },
+    "PC":  { "name": "Judge Pro Tem: Peter Catalanotti",    "dept": "506", "pro_tem": true },
+    "TC":  { "name": "Judge Pro Tem: Tom Cohen",            "dept": "506", "pro_tem": true },
+    "PR":  { "name": "Judge Pro Tem: Paul Renne",           "dept": "506", "pro_tem": true },
+    "SBS": { "name": "Judge Pro Tem: Steven B. Stein",      "dept": "506", "pro_tem": true },
+    "AM":  { "name": "Judge Pro Tem: Aaron Minnis",         "dept": "506", "pro_tem": true },
+    "NL":  { "name": "Judge Pro Tem: Noah Lebowitz",        "dept": "506", "pro_tem": true },
+    "NJL": { "name": "Judge Pro Tem: Noah J. Lebowitz",     "dept": "506", "pro_tem": true },
+    "PVZ": { "name": "Judge Pro Tem: Peter Van Zandt",      "dept": "506", "pro_tem": true },
+    "SM":  { "name": "Judge Pro Tem: Steven Murphy",        "dept": "506", "pro_tem": true },
+    "PJT": { "name": "Judge Pro Tem",                       "dept": "506", "pro_tem": true },
+    "NJG": { "name": "Judge Pro Tem: Naomi Jane Gray",      "dept": "506", "pro_tem": true },
+    "DR":  { "name": "Judge Pro Tem: Douglas Robbins",      "dept": "506", "pro_tem": true },
+    "JF":  { "name": "Judge Pro Tem: James Fleming",        "dept": "506", "pro_tem": true },
+    "GD":  { "name": "Gail Dekreon",                        "dept": "302", "former": true  }
   },
 
   "roster": [
@@ -114,7 +139,15 @@
   ],
 
   "former": [
-    { "code": "EHG", "last": "Goldsmith",   "first": "Ernest",           "middle": "H",       "dept": "302"   },
-    { "code": "EG",  "last": "Goldsmith",   "first": "Ernest",           "middle": "",        "dept": "302"   }
+    { "code": "EHG",  "last": "Goldsmith",  "first": "Ernest",    "middle": "H",  "dept": "302" },
+    { "code": "EG",   "last": "Goldsmith",  "first": "Ernest",    "middle": "",   "dept": "302" },
+    { "code": "HK",   "last": "???",        "first": "H",         "middle": "",   "dept": "302", "note": "5345 rulings 2014-2020, identity unknown" },
+    { "code": "HEK",  "last": "???",        "first": "H",         "middle": "E",  "dept": "302", "note": "1846 rulings 2014-2022, identity unknown" },
+    { "code": "MJM",  "last": "???",        "first": "M",         "middle": "J",  "dept": "302", "note": "911 rulings 2014 only, identity unknown" },
+    { "code": "AJR",  "last": "???",        "first": "A",         "middle": "J",  "dept": "302", "note": "480 rulings 2014-2017, identity unknown" },
+    { "code": "PJB",  "last": "???",        "first": "P",         "middle": "J",  "dept": "302", "note": "167 rulings 2014 only, identity unknown" },
+    { "code": "JKS",  "last": "???",        "first": "J",         "middle": "K",  "dept": "302", "note": "75 rulings 2014-2016, identity unknown" },
+    { "code": "CPK",  "last": "???",        "first": "C",         "middle": "P",  "dept": "302", "note": "78 rulings 2017-2018, identity unknown" },
+    { "code": "AB",   "last": "???",        "first": "A",         "middle": "",   "dept": "302", "note": "49 rulings 2017, identity unknown" }
   ]
 }

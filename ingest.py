@@ -49,14 +49,17 @@ else:
 def extract_judge(ruling_text):
     if not ruling_text:
         return None
-    m = re.search(r'=\(?(?:\d+)/([A-Za-z]+)\)?\.?\s*$', ruling_text)
+    # Match =dept/CODE or =(dept/CODE) or = (dept/CODE) with optional spaces/parens
+    m = re.search(r'=\s*\(?\s*\d+\s*/\s*([A-Za-z]+)\s*\)?\s*\.?\s*$', ruling_text)
     if not m:
         return None
     code = m.group(1).upper()
     if code == 'JPT':
+        # Require the captured name to start with an uppercase letter (not boilerplate)
         pt = re.search(
-            r'Pro Tem Judge\s+([\w.]+(?:\s+[\w.]+)*?)(?:,|;|\s+a member|\s+has been)',
-            ruling_text, re.IGNORECASE
+            r'Pro Tem Judge\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+)*?)'
+            r'(?:,|;|\s+a\s+member|\s+member|\s+has been|\s+recuses)',
+            ruling_text
         )
         if pt:
             return f"Judge Pro Tem: {pt.group(1).strip()}"

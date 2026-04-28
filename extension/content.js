@@ -30,14 +30,26 @@ const JUDGE_MAP = {
   RLW: 'Rebecca L. Wightman',     MFW: 'Monica F. Wiley',
   KW:  'Kenneth Wine',            MEW: 'Mary E. Wiss',
   GLW: 'Garrett L. Wong',         BCW: 'Braden C. Woods',
+  ESP: 'Ethan P. Schulman',
+  RU:  'Richard B. Ulmer Jr.',    RE:  'Rochelle C. East',
+  CEK: 'Curtis E.A. Karnow',      JQ:  'Joseph M. Quinn',
+  SB:  'Suzanne Ramos Bolanos',   AYSC:'Andrew Y.S. Cheng',
+  BH:  'Judge Pro Tem: Bruce Highman',     DM:  'Judge Pro Tem: David McDonald',
+  PC:  'Judge Pro Tem: Peter Catalanotti', TC:  'Judge Pro Tem: Tom Cohen',
+  PR:  'Judge Pro Tem: Paul Renne',        SBS: 'Judge Pro Tem: Steven B. Stein',
+  AM:  'Judge Pro Tem: Aaron Minnis',      NL:  'Judge Pro Tem: Noah Lebowitz',
+  NJL: 'Judge Pro Tem: Noah J. Lebowitz',  PVZ: 'Judge Pro Tem: Peter Van Zandt',
+  SM:  'Judge Pro Tem: Steven Murphy',     PJT: 'Judge Pro Tem',
+  NJG: 'Judge Pro Tem: Naomi Jane Gray',   DR:  'Judge Pro Tem: Douglas Robbins',
+  JF:  'Judge Pro Tem: James Fleming',     GD:  'Gail Dekreon',
 };
 
 function extractJudge(rulingText) {
-  const m = rulingText.match(/=\(?(?:\d+)\/([A-Za-z]+)\)?\.?\s*$/);
+  const m = rulingText.match(/=\s*\(?\s*\d+\s*\/\s*([A-Za-z]+)\s*\)?\s*\.?\s*$/);
   if (!m) return null;
   const code = m[1].toUpperCase();
   if (code === 'JPT') {
-    const pt = rulingText.match(/Pro Tem Judge\s+([\w.]+(?:\s+[\w.]+)*?)(?:,|;|\s+a member|\s+has been)/i);
+    const pt = rulingText.match(/Pro Tem Judge\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+)*?)(?:,|;|\s+a\s+member|\s+member|\s+has been|\s+recuses)/);
     if (pt) return `Judge Pro Tem: ${pt[1].trim()}`;
     return 'Judge Pro Tem';
   }
