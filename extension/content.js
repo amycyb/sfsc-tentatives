@@ -101,18 +101,32 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
 
   const [y, m, d] = dateStr.split('-');
   const formatted = `${m}/${d}/${y}`;
-  const form = input.closest('form');
-
-  input.value = formatted;
-  input.dispatchEvent(new Event('input',  { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-
+  const jq = window.jQuery || window.$;
   const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
+
+  if (jq && jq(input).data('datepicker')) {
+    // jQuery UI datepicker: set the date via the API so internal state + onSelect fire
+    jq(input).datepicker('setDate', new Date(parseInt(y), parseInt(m) - 1, parseInt(d)));
+    jq(input).trigger('change');
+  } else {
+    input.value = formatted;
+    input.dispatchEvent(new Event('input',  { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    if (jq) jq(input).trigger('change');
+  }
+
+  // Give an AJAX auto-search a moment to fire before looking for a submit button
+  await new Promise(r => setTimeout(r, 400));
+  const earlyContainer = document.getElementById('resultsRulings');
+  if (earlyContainer && earlyContainer.innerHTML !== prevHTML) return scrape();
+
+  // Fall back to explicit form submission (full-page-reload sites)
+  const form = input.closest('form');
   const btn = form?.querySelector('input[type="submit"], input[type="image"], button[type="submit"]')
            ?? document.querySelector('input[type="submit"], input[type="image"], button[type="submit"]');
   if (btn)       btn.click();
   else if (form) form.submit();
-  else           return { error: 'No submit button found.' };
+  else           return { error: 'No submit button or auto-search found.' };
 
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
