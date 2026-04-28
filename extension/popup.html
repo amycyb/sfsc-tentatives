@@ -61,6 +61,44 @@
     #send-btn:hover:not(:disabled) { background: #214d78; }
     #send-btn:disabled { opacity: 0.4; cursor: default; }
 
+    /* Bulk scrape section */
+    #bulk-section {
+      border-top: 1px solid #e8eef8;
+      margin-top: 0.25rem;
+      padding-top: 0.6rem;
+    }
+    .bulk-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .bulk-row > div { flex: 1; }
+    .bulk-row label { display: block; font-size: 0.72rem; color: #555; margin-bottom: 0.15rem; }
+    .bulk-row input[type="date"] {
+      width: 100%;
+      padding: 0.3rem 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      box-sizing: border-box;
+    }
+    #bulk-btn {
+      background: #2e6da4;
+      color: white;
+      font-size: 0.82rem;
+    }
+    #bulk-btn:hover:not(:disabled) { background: #3880bc; }
+    #bulk-btn:disabled { opacity: 0.4; cursor: default; }
+    #bulk-stop {
+      display: none;
+      background: #c0392b;
+      color: white;
+      font-size: 0.78rem;
+      padding: 0.3rem;
+      margin-top: -0.3rem;
+    }
+    #bulk-stop:hover { background: #e74c3c; }
+
     #settings-btn {
       background: none;
       color: #888;
@@ -107,10 +145,26 @@
 
   <main>
     <div class="status" id="status">
-      <span id="status-text">Checking page…</span>
+      <span>Checking page…</span>
     </div>
 
     <button id="send-btn" disabled>Send to GitHub</button>
+
+    <div id="bulk-section">
+      <div class="bulk-row">
+        <div>
+          <label>From</label>
+          <input type="date" id="bulk-from">
+        </div>
+        <div>
+          <label>To</label>
+          <input type="date" id="bulk-to">
+        </div>
+      </div>
+      <button id="bulk-btn" disabled>Bulk Scrape Range</button>
+      <button id="bulk-stop">Stop</button>
+    </div>
+
     <button id="settings-btn">⚙ Settings</button>
 
     <div id="settings">
