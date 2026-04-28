@@ -32,12 +32,21 @@ async function isDuplicate(token, owner, repo, branch, date, department) {
 
 // ── Commit ────────────────────────────────────────────────────────────────────
 
+function courtDate(rulings) {
+  // Extract the court date (date the rulings are FOR) from the first ruling.
+  // Falls back to today if unparseable.
+  const raw = rulings?.[0]?.['Court Date'] ?? '';
+  const m = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
+}
+
 async function commitToGitHub({ token, owner, repo, branch, data }) {
   const { department, scraped_at, rulings } = data;
 
-  const now  = new Date(scraped_at);
-  const date = now.toISOString().slice(0, 10);
-  const time = now.toISOString().slice(11, 19).replace(/:/g, '');
+  const date = courtDate(rulings);
+  const time = new Date(scraped_at).toISOString().slice(11, 19).replace(/:/g, '');
   const path = `raw/${date}-dept${department}-${time}.json`;
 
   // Refuse silently-duplicate submissions
