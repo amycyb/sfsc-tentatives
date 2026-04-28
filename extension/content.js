@@ -95,15 +95,40 @@ function findDateInput() {
   return null;
 }
 
-async function fillAndScrape(dateStr, waitMs = 7000) {
+async function fillAndScrape(dateStr, waitMs = 2000) {
   const input = findDateInput();
   if (!input) return { error: 'No date input found on this page.' };
 
   const [y, m, d] = dateStr.split('-');
-  input.value = `${m}/${d}/${y}`;
+  const formatted = `${m}/${d}/${y}`;
+  const form = input.closest('form');
+
+  if (form && form.method.toUpperCase() !== 'POST') {
+    const url = new URL(form.action);
+    url.searchParams.set(input.name || 'DatePick', formatted);
+    window.location.href = url.toString();
+    return { pending: true };
+  }
+
+  input.value = formatted;
   input.dispatchEvent(new Event('input',  { bubbles: true }));
   input.dispatchEvent(new Event('change', { bubbles: true }));
 
+  const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
+  const btn = form?.querySelector('input[type="submit"], input[type="image"], button[type="submit"]')
+           ?? document.querySelector('input[type="submit"], input[type="image"], button[type="submit"]');
+  if (btn)       btn.click();
+  else if (form) form.submit();
+  else           return { error: 'No submit button found.' };
+
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 500));
+    const container = document.getElementById('resultsRulings');
+    if (container && container.innerHTML !== prevHTML) return scrape();
+  }
+  return { pending: true };
+}
   // Snapshot current results so we can detect a change
   const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
 
