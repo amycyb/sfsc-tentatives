@@ -129,6 +129,28 @@ async function fillAndScrape(dateStr, waitMs = 7000) {
 
 // ── Message listener ──────────────────────────────────────────────────────────
 
+function diagnose() {
+  const input = findDateInput();
+  const form  = input?.closest('form');
+  const btn   = form?.querySelector('input[type="submit"], button[type="submit"]')
+             ?? document.querySelector('input[type="submit"], button[type="submit"]');
+
+  const allForms = [...document.querySelectorAll('form')].map(f => ({
+    action: f.action,
+    method: f.method,
+    inputs: [...f.querySelectorAll('input')].map(i => ({
+      name: i.name, id: i.id, type: i.type, value: i.value,
+    })),
+  }));
+
+  return {
+    foundInput: input ? { name: input.name, id: input.id, type: input.type } : null,
+    formAction: form?.action ?? null,
+    btnText:    btn ? (btn.value || btn.textContent).trim() : null,
+    allForms,
+  };
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   if (msg.action === 'scrape') {
     respond(scrape());
@@ -136,6 +158,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   }
   if (msg.action === 'fill-and-scrape') {
     fillAndScrape(msg.date, msg.waitMs).then(respond);
+    return true;
+  }
+  if (msg.action === 'diagnose') {
+    respond(diagnose());
     return true;
   }
 });

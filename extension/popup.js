@@ -241,6 +241,26 @@ $('bulk-btn').addEventListener('click', async () => {
 
 $('bulk-stop').addEventListener('click', () => { bulkRunning = false; });
 
+// ── Diagnose ──────────────────────────────────────────────────────────────────
+
+$('diag-btn').addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+  } catch (_) {}
+  chrome.tabs.sendMessage(tab.id, { action: 'diagnose' }, result => {
+    if (chrome.runtime.lastError || !result) {
+      setStatus('Could not diagnose — refresh page and try again.', 'error');
+      return;
+    }
+    const msg = result.foundInput
+      ? `Input: name="${result.foundInput.name}" id="${result.foundInput.id}" | Form action: ${result.formAction} | Btn: "${result.btnText}" | Forms on page: ${result.allForms.length}`
+      : `No date input found. Forms on page: ${JSON.stringify(result.allForms)}`;
+    setStatus(msg, result.foundInput ? 'warn' : 'error');
+    console.log('SFSC diagnose:', JSON.stringify(result, null, 2));
+  });
+});
+
 // ── Settings panel ────────────────────────────────────────────────────────────
 
 $('settings-btn').addEventListener('click', async () => {
