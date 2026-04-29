@@ -57,9 +57,9 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary>**Department 302 — Civil Law & Motion** &nbsp;·&nbsp; 46,425 rulings &nbsp;·&nbsp; Latest: 2026-04-28 &nbsp;·&nbsp; 41 gaps</summary>
+<summary>**Department 302 — Civil Law & Motion** &nbsp;·&nbsp; 46,446 rulings &nbsp;·&nbsp; Latest: 2026-04-28 &nbsp;·&nbsp; 41 gaps</summary>
 
-46,425 tentative rulings. Latest: 2026-04-28.
+46,446 tentative rulings. Latest: 2026-04-28.
 
 ### Gaps (41)
 
@@ -95,7 +95,7 @@ python update-readme.py
 - 2024-08-29 → 2024-08-30
 - 2024-09-05 → 2024-09-16
 - 2024-09-18
-- 2024-09-20 → 2024-09-24
+- 2024-09-23 → 2024-09-24
 - 2024-09-26 → 2024-09-30
 - 2024-10-02 → 2024-10-16
 - 2024-10-21
