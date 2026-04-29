@@ -3,59 +3,43 @@
 // ── Message router ────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
-  if (msg.action === 'commit') {
-    commitToGitHub(msg.payload).then(respond).catch(err => respond({ error: err.message }));
-    return true;
-  }
-  if (msg.action === 'check-updates') {
-    checkForUpdates().then(respond).catch(err => respond({ error: err.message }));
-    return true;
-  }
-  if (msg.action === 'download-update') {
-    downloadUpdate().then(respond).catch(err => respond({ error: err.message }));
-    return true;
-  }
-  if (msg.action === 'start-bulk') {
-    startBulk(msg.payload).then(respond).catch(err => respond({ error: err.message }));
-    return true;
-  }
-  if (msg.action === 'stop-bulk') {
-    stopBulk().then(respond);
-    return true;
-  }
-  if (msg.action === 'bulk-status') {
-    chrome.storage.local.get(['_bulkJob'], r => respond(r._bulkJob || null));
-    return true;
-  }
+  const handlers = {
+    commit:          () => commitToGitHub(msg.payload),
+    'check-updates': checkForUpdates,
+    'download-update': downloadUpdate,
+    'start-bulk':    () => startBulk(msg.payload),
+    'stop-bulk':     stopBulk,
+    'bulk-status':   () => chrome.storage.local.get(['_bulkJob']).then(r => r._bulkJob || null),
+  };
+  const handler = handlers[msg.action];
+  if (!handler) return false;
+  Promise.resolve().then(handler).then(respond).catch(err => respond({ error: err.message }));
+  return true;
 });
 
 // ── Update checking ───────────────────────────────────────────────────────────
 
 async function checkForUpdates() {
-  const owner = 'aimesy', repo = 'sfsc-tentatives';
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/sfsc-extension.zip`,
+    'https://api.github.com/repos/aimesy/sfsc-tentatives/contents/sfsc-extension.zip',
     { headers: { 'X-GitHub-Api-Version': '2022-11-28' } }
   );
   if (!res.ok) return { hasUpdate: false };
   const { sha: latestSha } = await res.json();
-  const stored = await new Promise(r => chrome.storage.local.get(['_lastExtensionSha'], r));
-  const lastSha = stored._lastExtensionSha;
-  if (latestSha !== lastSha) {
-    await new Promise(r => chrome.storage.local.set({ _lastExtensionSha: latestSha }, r));
-    return { hasUpdate: true, latestSha };
-  }
-  return { hasUpdate: false };
+  const { _lastExtensionSha: lastSha } = await chrome.storage.local.get(['_lastExtensionSha']);
+  if (latestSha === lastSha) return { hasUpdate: false };
+  await chrome.storage.local.set({ _lastExtensionSha: latestSha });
+  return { hasUpdate: true, latestSha };
 }
 
 async function downloadUpdate() {
   try {
-    const url = 'https://raw.githubusercontent.com/aimesy/sfsc-tentatives/master/sfsc-extension.zip';
     const downloadId = await new Promise((resolve, reject) => {
-      chrome.downloads.download({ url, filename: 'sfsc-extension.zip', saveAs: false }, id => {
-        if (id !== undefined) resolve(id);
-        else reject(new Error('Download failed'));
-      });
+      chrome.downloads.download({
+        url: 'https://raw.githubusercontent.com/aimesy/sfsc-tentatives/master/sfsc-extension.zip',
+        filename: 'sfsc-extension.zip',
+        saveAs: false,
+      }, id => id !== undefined ? resolve(id) : reject(new Error('Download failed')));
     });
     return { success: true, downloadId };
   } catch (err) {
@@ -63,9 +47,9 @@ async function downloadUpdate() {
   }
 }
 
-// ── Duplicate detection ───────────────────────────────────────────────────────
+// ── Duplicate detection (cached for 60s per dept) ─────────────────────────────
 
-const _dirCache = new Map(); // dept -> { files, time }
+const _dirCache = new Map();
 
 async function getDeptDir(token, owner, repo, branch, department) {
   const cached = _dirCache.get(department);
@@ -74,14 +58,10 @@ async function getDeptDir(token, owner, repo, branch, department) {
     `https://api.github.com/repos/${owner}/${repo}/contents/raw/dept${department}?ref=${branch}`,
     { headers: { Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' } }
   );
-  const files = res.ok ? (await res.json().catch(() => [])) : [];
-  _dirCache.set(department, { files: Array.isArray(files) ? files : [], time: Date.now() });
-  return _dirCache.get(department).files;
-}
-
-async function isDuplicate(token, owner, repo, branch, date, department) {
-  const files = await getDeptDir(token, owner, repo, branch, department);
-  return files.some(f => f.name.startsWith(`${date}-`));
+  const json = res.ok ? await res.json().catch(() => []) : [];
+  const files = Array.isArray(json) ? json : [];
+  _dirCache.set(department, { files, time: Date.now() });
+  return files;
 }
 
 // ── Commit ────────────────────────────────────────────────────────────────────
@@ -101,9 +81,8 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
   const time = new Date(scraped_at).toISOString().slice(11, 19).replace(/:/g, '');
   const path = `raw/dept${department}/${date}-${time}.json`;
 
-  if (await isDuplicate(token, owner, repo, branch, date, department)) {
-    return { duplicate: true, path };
-  }
+  const files = await getDeptDir(token, owner, repo, branch, department);
+  if (files.some(f => f.name.startsWith(`${date}-`))) return { duplicate: true, path };
 
   const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
@@ -119,24 +98,30 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
       branch,
     }),
   });
-
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message || `GitHub API error ${res.status}`);
   }
 
-  // Append to cache instead of invalidating — avoids a re-fetch on next duplicate check
-  const cached = _dirCache.get(department);
-  if (cached) cached.files.push({ name: `${date}-${time}.json` });
+  // Append to cache so the next duplicate check sees this file without a re-fetch
+  files.push({ name: `${date}-${time}.json` });
 
   const json = await res.json();
   return { ok: true, path, sha: json.content?.sha };
 }
 
-// ── Background bulk scraping ──────────────────────────────────────────────────
-// State is kept in chrome.storage.local so it survives popup close.
-// Schema: { running, done, dates[], index, tabId, settings, waitMs,
-//           committed, skipped, errors, currentDate, waitingForTab, fatalError }
+// ── Bulk scraping state machine ───────────────────────────────────────────────
+// State lives in chrome.storage.local._bulkJob so it survives popup close and
+// service-worker restarts.
+//
+// Schema: {
+//   runId,                       // monotonic ID; used to discard stale callbacks
+//   running, done, fatalError,
+//   dates[], index, currentDate,
+//   tabId, settings, waitMs,
+//   committed, skipped, errors,
+//   waitingForTab,               // true while a navigation is in flight
+// }
 
 const BULK_ALARM = 'sfsc-bulk-next';
 
@@ -144,22 +129,40 @@ chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === BULK_ALARM) bulkStep();
 });
 
-// When the SFTC tab finishes loading (after a form-submit navigation),
-// resume scraping without waiting for an alarm.
+// When the SFTC tab finishes loading after a form-submit navigation,
+// resume scraping immediately rather than waiting for the next alarm.
 chrome.tabs.onUpdated.addListener(async (tabId, info) => {
   if (info.status !== 'complete') return;
-  const { _bulkJob: job } = await chrome.storage.local.get('_bulkJob');
+  const job = await readJob();
   if (!job?.running || !job.waitingForTab || job.tabId !== tabId) return;
   bulkScrapeAfterLoad(job);
 });
 
+async function readJob() {
+  const { _bulkJob } = await chrome.storage.local.get('_bulkJob');
+  return _bulkJob;
+}
+
+// Apply `mutator` to the latest job state, but ONLY if `runId` still matches —
+// otherwise the in-flight callback was superseded by Stop or a new Start, and
+// the update is silently discarded. Returns the new state, or null if discarded.
+async function applyJobUpdate(runId, mutator) {
+  const current = await readJob();
+  if (!current?.running || current.runId !== runId) return null;
+  const next = mutator({ ...current });
+  await chrome.storage.local.set({ _bulkJob: next });
+  return next;
+}
+
 async function startBulk({ dates, tabId, settings, waitMs }) {
-  chrome.alarms.clear(BULK_ALARM);
+  await chrome.alarms.clear(BULK_ALARM);
   const job = {
-    running: true, done: false,
-    dates, index: 0, tabId, settings, waitMs: waitMs || 1000,
+    runId: Date.now(),
+    running: true, done: false, fatalError: null,
+    dates, index: 0, currentDate: null,
+    tabId, settings, waitMs: waitMs || 1000,
     committed: 0, skipped: 0, errors: 0,
-    currentDate: null, waitingForTab: false, fatalError: null,
+    waitingForTab: false,
   };
   await chrome.storage.local.set({ _bulkJob: job });
   bulkStep();
@@ -167,16 +170,14 @@ async function startBulk({ dates, tabId, settings, waitMs }) {
 }
 
 async function stopBulk() {
-  chrome.alarms.clear(BULK_ALARM);
-  const { _bulkJob } = await chrome.storage.local.get('_bulkJob');
-  if (_bulkJob) {
-    await chrome.storage.local.set({ _bulkJob: { ..._bulkJob, running: false } });
-  }
+  await chrome.alarms.clear(BULK_ALARM);
+  const current = await readJob();
+  if (current) await chrome.storage.local.set({ _bulkJob: { ...current, running: false } });
   return { ok: true };
 }
 
 async function bulkStep() {
-  const { _bulkJob: job } = await chrome.storage.local.get('_bulkJob');
+  const job = await readJob();
   if (!job?.running) return;
 
   if (job.index >= job.dates.length) {
@@ -187,17 +188,11 @@ async function bulkStep() {
   const date = job.dates[job.index];
   await chrome.storage.local.set({ _bulkJob: { ...job, currentDate: date } });
 
-  // Inject content script — if tab is gone, abort
-  try {
-    await chrome.scripting.executeScript({ target: { tabId: job.tabId }, files: ['content.js'] });
-  } catch {
-    await chrome.storage.local.set({
-      _bulkJob: { ...job, running: false, fatalError: 'SFTC tab was closed. Reopen it and Resume.' }
-    });
-    return;
-  }
+  if (!await injectContentScript(job)) return;
 
-  // Send fill-and-scrape; if lastError the page is navigating
+  // fill-and-scrape may navigate (form submit reloads the page).
+  // If it does, the message channel disconnects (lastError is set);
+  // tabs.onUpdated → bulkScrapeAfterLoad will resume once the page loads.
   const result = await new Promise(resolve => {
     chrome.tabs.sendMessage(job.tabId, { action: 'fill-and-scrape', date, waitMs: job.waitMs }, r =>
       resolve(chrome.runtime.lastError ? { navigated: true } : r)
@@ -205,83 +200,80 @@ async function bulkStep() {
   });
 
   if (result?.navigated) {
-    // onUpdated will fire when the page finishes loading
-    await chrome.storage.local.set({ _bulkJob: { ...job, currentDate: date, waitingForTab: true } });
+    await applyJobUpdate(job.runId, j => ({ ...j, currentDate: date, waitingForTab: true }));
     return;
   }
 
-  await bulkHandleResult({ ...job, currentDate: date }, result);
+  await bulkHandleResult(job, date, result);
 }
 
 async function bulkScrapeAfterLoad(job) {
-  // Inject content script and scrape the freshly-loaded page
-  try {
-    await chrome.scripting.executeScript({ target: { tabId: job.tabId }, files: ['content.js'] });
-  } catch {
-    await chrome.storage.local.set({
-      _bulkJob: { ...job, running: false, waitingForTab: false,
-                  fatalError: 'SFTC tab was closed. Reopen it and Resume.' }
-    });
-    return;
-  }
-
+  if (!await injectContentScript(job)) return;
   await new Promise(r => setTimeout(r, 200));
 
-  let data = await new Promise(resolve =>
-    chrome.tabs.sendMessage(job.tabId, { action: 'scrape' }, r =>
+  // One retry if content script isn't quite ready yet
+  let data = await sendScrape(job.tabId);
+  if (!data || data.error) {
+    await new Promise(r => setTimeout(r, 400));
+    data = await sendScrape(job.tabId);
+  }
+  await bulkHandleResult(job, job.currentDate, data);
+}
+
+async function sendScrape(tabId) {
+  return new Promise(resolve =>
+    chrome.tabs.sendMessage(tabId, { action: 'scrape' }, r =>
       resolve(chrome.runtime.lastError ? null : r)
     )
   );
-
-  // One retry if content script wasn't ready yet
-  if (!data || data.error) {
-    await new Promise(r => setTimeout(r, 400));
-    data = await new Promise(resolve =>
-      chrome.tabs.sendMessage(job.tabId, { action: 'scrape' }, r =>
-        resolve(chrome.runtime.lastError ? null : r)
-      )
-    );
-  }
-
-  await bulkHandleResult({ ...job, waitingForTab: false }, data);
 }
 
-async function bulkHandleResult(job, data) {
-  const update = { ...job, waitingForTab: false };
-
-  if (data?.sessionExpired) {
-    update.running = false;
-    update.fatalError = 'Session has expired. Please log in again and Resume.';
-    await chrome.storage.local.set({ _bulkJob: update });
-    return;
+async function injectContentScript(job) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: job.tabId }, files: ['content.js'] });
+    return true;
+  } catch {
+    await applyJobUpdate(job.runId, j => ({
+      ...j, running: false, waitingForTab: false,
+      fatalError: 'SFTC tab was closed. Reopen it and Resume.',
+    }));
+    return false;
   }
+}
 
-  if (!data || data.error || data.pending) {
-    update.errors++;
-  } else {
+async function bulkHandleResult(job, date, data) {
+  // Commit first — we can't unwind a network call, and duplicate detection
+  // makes it idempotent on Resume. Then atomically advance the job state
+  // (or discard the update if Stop landed during the commit).
+  let outcome = 'errors';
+  if (data?.sessionExpired) {
+    outcome = 'session';
+  } else if (data && !data.error && !data.pending) {
     try {
       const { token, repo, branch } = job.settings;
       const [owner, repoName] = repo.split('/');
-      // Always commit, even for 0 rulings — the file marks the date as scanned.
-      // Inject _date so courtDate() uses the searched date when rulings is empty.
-      const res = await commitToGitHub({ token, owner, repo: repoName, branch, data: { ...data, _date: job.currentDate } });
-      if (res.error)          update.errors++;
-      else if (res.duplicate) update.skipped++;
-      else                    update.committed++;
+      const res = await commitToGitHub({
+        token, owner, repo: repoName, branch,
+        data: { ...data, _date: date },
+      });
+      outcome = res.duplicate ? 'skipped' : 'committed';
     } catch {
-      update.errors++;
+      outcome = 'errors';
     }
   }
 
-  update.index++;
+  const next = await applyJobUpdate(job.runId, j => {
+    const u = { ...j, waitingForTab: false };
+    if (outcome === 'session') {
+      u.running = false;
+      u.fatalError = 'Session has expired. Please log in again and Resume.';
+      return u;
+    }
+    u[outcome]++;
+    u.index++;
+    if (u.index >= u.dates.length) { u.running = false; u.done = true; }
+    return u;
+  });
 
-  if (update.index >= update.dates.length) {
-    update.running = false;
-    update.done    = true;
-    await chrome.storage.local.set({ _bulkJob: update });
-    return;
-  }
-
-  await chrome.storage.local.set({ _bulkJob: update });
-  chrome.alarms.create(BULK_ALARM, { when: Date.now() + 300 });
+  if (next?.running) chrome.alarms.create(BULK_ALARM, { when: Date.now() + 300 });
 }

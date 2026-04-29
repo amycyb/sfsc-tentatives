@@ -141,7 +141,10 @@ function scrape() {
 // ── Auto-navigation helpers ───────────────────────────────────────────────────
 
 function findDateInput() {
-  // 1. Specific known selectors — most reliable, check first
+  // Only specific known SFTC selectors. Heuristic fallbacks (label-text,
+  // input[name*=Date]) were dropped because they risk silently picking the
+  // wrong field; if SFTC ever changes their HTML, fail loudly via Diagnose
+  // rather than scraping the wrong input.
   for (const sel of [
     'input[name="DatePick"]', 'input[id="DatePick"]',
     'input.hasDatepicker',
@@ -149,36 +152,6 @@ function findDateInput() {
   ]) {
     const el = document.querySelector(sel);
     if (el) return el;
-  }
-
-  // 2. Find by "Court Date" label text — only leaf/row elements, not div containers
-  //    (div containers may match but querySelector returns the wrong first input)
-  for (const el of document.querySelectorAll('label, td, th, p')) {
-    if (!/court\s*date/i.test(el.textContent)) continue;
-
-    if (el.tagName === 'LABEL' && el.htmlFor) {
-      const inp = document.getElementById(el.htmlFor);
-      if (inp) return inp;
-    }
-    const nested = el.querySelector('input');
-    if (nested) return nested;
-    const sibling = el.nextElementSibling;
-    if (sibling) {
-      const inp = sibling.tagName === 'INPUT' ? sibling : sibling.querySelector('input');
-      if (inp) return inp;
-    }
-  }
-
-  // 3. Generic name/id patterns
-  for (const sel of ['input[name*="Date" i]', 'input[id*="date" i]', 'input[type="date"]']) {
-    const el = document.querySelector(sel);
-    if (el) return el;
-  }
-
-  // 4. Last resort: first text input in a form
-  for (const form of document.querySelectorAll('form')) {
-    const t = form.querySelector('input[type="text"]');
-    if (t) return t;
   }
   return null;
 }

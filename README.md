@@ -1,53 +1,51 @@
 # SFSC Tentative Rulings
 
-Tentative rulings from the San Francisco Superior Court, archived by department.
+Daily archive of tentative rulings from the San Francisco Superior Court.
 
 **[Browse the data →](https://aimesy.github.io/sfsc-tentatives/)**
 
----
+## Repo layout
 
-## Repository layout
-
-| Path | Description |
-|------|-------------|
-| `tentatives.parquet` | Canonical dataset (all departments) |
-| `raw/dept<N>/` | Raw JSON exports per department |
+| Path | What |
+|------|------|
+| `tentatives.parquet` | Canonical dataset (all rulings, all departments) |
+| `raw/dept<N>/*.json` | Per-day raw scrapes, organised by department |
 | `extension/` | Chrome extension source |
-| `sfsc-extension.zip` | Installable extension package |
-| `ingest.py` | Ingests raw JSON into the parquet |
-| `index.html` | Data browser (served via GitHub Pages) |
+| `sfsc-extension.zip` | Pre-built, installable extension |
+| `index.html` | Static data browser (served via GitHub Pages) |
+| `ingest.py` | Merges raw JSON into the parquet |
+| `update-readme.py` | Regenerates the department sections below |
 
-## Browser extension
+## Chrome extension
 
-The extension scrapes the [SFSC tentative rulings page](https://webapps.sftc.org/tr/tr.dll) and commits results directly to this repository.
+Scrapes the [SFSC tentative rulings page](https://webapps.sftc.org/tr/tr.dll) and commits results directly to this repo.
 
 ### Install
 
-1. Download `sfsc-extension.zip` and unzip it.
-2. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, select the unzipped folder.
-3. Open the extension popup → **Settings** → enter your GitHub PAT (needs `Contents: write`) and save.
+1. Download and unzip `sfsc-extension.zip`.
+2. `chrome://extensions` → enable **Developer mode** → **Load unpacked** → pick the unzipped folder.
+3. Open the popup → **⚙ Settings** → paste a GitHub PAT (needs `Contents: write`).
 
 ### Use
 
-- **Single day:** navigate to the rulings page, run a search, then click **Send to GitHub**.
-- **Bulk scrape:** enter a date range and click **Bulk Scrape Range**. The extension iterates every weekday, commits each date automatically.
-- **Stop:** click **Stop** to halt after the current date finishes; nothing in-flight is lost.
-- **Updates:** click **📦 Check for updates** to auto-download the latest `sfsc-extension.zip`.
+- **One day** — search a date on the rulings page, click **Send to GitHub**.
+- **Date range** — fill From/To, click **Bulk Scrape Range**. Iterates every weekday in range, skipping weekends and California court holidays.
+- **Auto-fill gaps** — **Scan Unscanned Pages** finds every weekday from the first scanned date to today that's missing, then bulk-scrapes them.
+- **Stop** — halts the bulk run; in-flight commits still finish. Click **Resume** (⏭) to pick up from the day after the last commit.
+- **Updates** — the popup checks GitHub for a newer `sfsc-extension.zip` and offers a one-click download.
 
-## Ingest pipeline
+## Ingest
 
-New JSON files pushed to `raw/dept<N>/` trigger the GitHub Actions workflow (`.github/workflows/ingest.yml`), which runs `ingest.py` to merge them into `tentatives.parquet`.
+Raw JSON pushed to `raw/dept<N>/` triggers `.github/workflows/ingest.yml`, which runs `ingest.py` to merge the new rows into `tentatives.parquet` and refresh this README.
 
-To ingest locally:
+Local:
 
 ```bash
 pip install pandas pyarrow openpyxl
 python ingest.py raw/dept302/2026-04-28-120000.json
 ```
 
-## Maintaining this README
-
-Run `update-readme.py` to refresh the department sections with current stats:
+To regenerate just the department sections below:
 
 ```bash
 pip install pandas pyarrow holidays

@@ -2,7 +2,6 @@
 
 const $ = id => document.getElementById(id);
 let scrapedData = null;
-let bulkRunning = false;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,8 +24,6 @@ function validateSettings(s) {
   if (!s.repo || !s.repo.includes('/')) return 'Repository not set — open Settings below.';
   return null;
 }
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // YYYY-MM-DD using local-date components (avoids UTC-shift artefacts in TZ ≥ +13)
 function localISO(d) {
@@ -419,26 +416,32 @@ $('send-btn').addEventListener('click', async () => {
 
 // ── Bulk status display ───────────────────────────────────────────────────────
 
+function resetBulkButtons() {
+  $('bulk-btn').disabled = false;
+  $('auto-scan-btn').disabled = false;
+  $('bulk-stop').style.display = 'none';
+}
+
 function updateBulkStatus(job) {
   if (!job) return;
   if (job.fatalError) {
     setStatus(job.fatalError, 'error');
-    $('bulk-btn').disabled = false;
-    $('auto-scan-btn').disabled = false;
-    $('bulk-stop').style.display = 'none';
-    return;
-  }
-  if (job.done) {
+    resetBulkButtons();
+  } else if (job.done) {
     setStatus(
       `Done: ${job.committed} committed, ${job.skipped} skipped, ${job.errors} errors`,
       job.errors > 0 ? 'warn' : 'success'
     );
-    $('bulk-btn').disabled = false;
-    $('auto-scan-btn').disabled = false;
-    $('bulk-stop').style.display = 'none';
-    return;
-  }
-  if (job.running) {
+    resetBulkButtons();
+  } else if (!job.running) {
+    // Stopped by user — neither fatalError nor done. Show what was completed.
+    setStatus(
+      `Stopped at ${job.index}/${job.dates?.length} — ` +
+      `${job.committed} committed, ${job.skipped} skipped, ${job.errors} errors`,
+      'warn'
+    );
+    resetBulkButtons();
+  } else {
     const pct = job.dates?.length ? Math.round(job.index / job.dates.length * 100) : 0;
     setStatus(
       `[${job.index}/${job.dates?.length}] ${job.currentDate || '…'} — ` +
