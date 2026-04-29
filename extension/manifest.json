@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SFSC Tentative Rulings",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Send SFSC tentative rulings to GitHub for ingestion.",
   "permissions": ["storage", "scripting", "tabs", "alarms", "downloads"],
   "host_permissions": [
@@ -15,5 +15,14 @@
   },
   "background": {
     "service_worker": "background.js"
+  },
+  "commands": {
+    "commit-and-next": {
+      "suggested_key": {
+        "default":  "Alt+Shift+S",
+        "mac":      "Alt+Shift+S"
+      },
+      "description": "Commit current SFSC page to GitHub and load the next business day"
+    }
   }
 }

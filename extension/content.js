@@ -267,6 +267,38 @@ function diagnose() {
   };
 }
 
+// ── Toast (in-page feedback for hotkey actions) ───────────────────────────────
+
+function showToast(message, type = 'info') {
+  const colors = {
+    info:    { bg: '#1a3a5c', fg: 'white' },
+    success: { bg: '#2a7a4a', fg: 'white' },
+    warn:    { bg: '#b8860b', fg: 'white' },
+    error:   { bg: '#a02020', fg: 'white' },
+  };
+  const c = colors[type] || colors.info;
+  let toast = document.getElementById('sfsc-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'sfsc-toast';
+    toast.style.cssText = `
+      position: fixed; top: 16px; right: 16px; z-index: 2147483647;
+      padding: 10px 14px; border-radius: 6px;
+      font: 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      max-width: 360px; pointer-events: none;
+      transition: opacity 0.2s;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.style.background = c.bg;
+  toast.style.color = c.fg;
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 4000);
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
   if (msg.action === 'scrape') {
     respond(scrape());
@@ -286,6 +318,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
       ? `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`
       : (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null);
     respond(date ? { date } : {});
+    return true;
+  }
+  if (msg.action === 'show-toast') {
+    showToast(msg.message, msg.type);
+    respond({ ok: true });
     return true;
   }
   if (msg.action === 'diagnose') {

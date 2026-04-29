@@ -1,4 +1,6 @@
-// Service worker: GitHub commits + background bulk scraping.
+// Service worker: GitHub commits + background bulk scraping + hotkey.
+
+importScripts('./holidays.js'); // exposes COURT_HOLIDAYS, localISO, weekdaysBetween, nextBusinessDay
 
 // ── Message router ────────────────────────────────────────────────────────────
 
@@ -276,4 +278,107 @@ async function bulkHandleResult(job, date, data) {
   });
 
   if (next?.running) chrome.alarms.create(BULK_ALARM, { when: Date.now() + 300 });
+}
+
+// ── Hotkey: commit current page and advance to next business day ──────────────
+// Default Alt+Shift+S; user customizes at chrome://extensions/shortcuts.
+
+chrome.commands.onCommand.addListener(async cmd => {
+  if (cmd === 'commit-and-next') await commitAndAdvance();
+});
+
+async function commitAndAdvance() {
+  const tab = await findSftcTab();
+  if (!tab) {
+    // Nothing to surface this on — service worker can't toast without a tab.
+    return;
+  }
+  const toast = (message, type) =>
+    chrome.tabs.sendMessage(tab.id, { action: 'show-toast', message, type })
+      .catch(() => {});
+
+  const settings = await chrome.storage.local.get(['token', 'repo', 'branch']);
+  if (!settings.token || !settings.repo?.includes('/')) {
+    toast('SFSC: open the popup → Settings to configure your GitHub PAT', 'error');
+    return;
+  }
+
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+  } catch {
+    toast('SFSC: cannot run on this tab — navigate to the rulings page', 'error');
+    return;
+  }
+
+  const data = await sendMessage(tab.id, { action: 'scrape' });
+  if (!data || data.error) {
+    toast(`SFSC: ${data?.error || 'could not read page — run a search first'}`, 'error');
+    return;
+  }
+  if (data.sessionExpired) {
+    toast('SFSC: session expired — log in to the SFTC page again', 'error');
+    return;
+  }
+
+  // Use the page's date input as the source of truth for the current date —
+  // it works even when rulings is empty (so the user can step through holidays /
+  // empty calendars without getting stuck).
+  const dateRes = await sendMessage(tab.id, { action: 'get-date' });
+  const currentDate = dateRes?.date || (data.rulings[0]?.['Court Date']
+    ? parseCourtDate(data.rulings[0]['Court Date']) : null);
+  if (!currentDate) {
+    toast('SFSC: no date on this page — run a search first', 'error');
+    return;
+  }
+
+  const [owner, repo] = settings.repo.split('/');
+  const branch = settings.branch || 'master';
+  let commitMsg;
+  try {
+    const res = await commitToGitHub({
+      token: settings.token, owner, repo, branch,
+      data: { ...data, _date: currentDate },
+    });
+    commitMsg = res.duplicate
+      ? `Already committed ${currentDate} — skipped`
+      : `Committed ${data.rulings.length} ruling${data.rulings.length === 1 ? '' : 's'} for ${currentDate}`;
+  } catch (err) {
+    toast(`SFSC commit failed: ${err.message}`, 'error');
+    return;
+  }
+
+  const today = localISO(new Date());
+  const next = nextBusinessDay(currentDate);
+  if (next > today) {
+    toast(`${commitMsg}. No more business days — you're caught up.`, 'success');
+    return;
+  }
+
+  toast(`${commitMsg}. Loading ${next}…`, 'success');
+  // Fire and forget — the page navigation will finish and the user reviews,
+  // then presses the hotkey again. waitMs is short because we don't actually
+  // wait for the result here.
+  sendMessage(tab.id, { action: 'fill-and-scrape', date: next, waitMs: 100 });
+}
+
+async function findSftcTab() {
+  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active?.url?.includes('webapps.sftc.org/tr/')) return active;
+  const [any] = await chrome.tabs.query({ url: 'https://webapps.sftc.org/tr/*' });
+  return any || null;
+}
+
+function sendMessage(tabId, msg) {
+  return new Promise(resolve =>
+    chrome.tabs.sendMessage(tabId, msg, r =>
+      resolve(chrome.runtime.lastError ? null : r)
+    )
+  );
+}
+
+function parseCourtDate(raw) {
+  const m = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  return null;
 }
