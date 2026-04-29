@@ -49,13 +49,20 @@ else:
 def extract_judge(ruling_text):
     if not ruling_text:
         return None
-    # Match =dept/CODE or =(dept/CODE) or = (dept/CODE) with optional spaces/parens
-    m = re.search(r'=\s*\(?\s*\d+\s*/\s*([A-Za-z]+)\s*\)?\s*\.?\s*$', ruling_text)
+    # Trailing tag forms observed in the wild:
+    #   =(302/CK)  =(D302/CK)  (302/CK)  =(JPT)  =(525/JPT)  =(JPT/525)
+    #   +(302/HEK) =(302.JMQ)  =(HEK)    (D302)  =(D525)     =(525)
+    # Optional [=+] prefix; required parens; optional D before digits;
+    # separator may be / . , or whitespace; optional trailing period.
+    m = re.search(r'[=+]?\s*\(\s*([A-Za-z0-9][A-Za-z0-9\s/.,]{0,15})\s*\)\s*\.?\s*$', ruling_text)
     if not m:
         return None
-    code = m.group(1).upper()
+    # Pick the first letter-only run that isn't a bare D dept-marker.
+    # Dept-only tags like (D302) yield no code → None (data genuinely lacks a judge code).
+    code = next((c.upper() for c in re.findall(r'[A-Za-z]+', m.group(1)) if c.upper() != 'D'), None)
+    if not code:
+        return None
     if code == 'JPT':
-        # Require the captured name to start with an uppercase letter (not boilerplate)
         pt = re.search(
             r'Pro Tem Judge\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+)*?)'
             r'(?:,|;|\s+a\s+member|\s+member|\s+has been|\s+recuses)',

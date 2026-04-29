@@ -91,12 +91,13 @@ function courtDate(rulings) {
   const m = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  return new Date().toISOString().slice(0, 10);
+  return null;
 }
 
 async function commitToGitHub({ token, owner, repo, branch, data }) {
   const { department, scraped_at, rulings } = data;
   const date = data._date || courtDate(rulings);
+  if (!date) throw new Error('No court date — pass _date in payload when rulings is empty.');
   const time = new Date(scraped_at).toISOString().slice(11, 19).replace(/:/g, '');
   const path = `raw/dept${department}/${date}-${time}.json`;
 

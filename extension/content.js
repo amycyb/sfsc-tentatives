@@ -49,9 +49,18 @@ const JUDGE_MAP = {
 };
 
 function extractJudge(rulingText) {
-  const m = rulingText.match(/=\s*\(?\s*\d+\s*\/\s*([A-Za-z]+)\s*\)?\s*\.?\s*$/);
+  // Trailing tag forms observed in the wild:
+  //   =(302/CK)  =(D302/CK)  (302/CK)  =(JPT)  =(525/JPT)  =(JPT/525)
+  //   +(302/HEK) =(302.JMQ)  =(HEK)    (D302)  =(D525)     =(525)
+  // Optional [=+] prefix; required parens; optional D before digits;
+  // separator may be / . , or whitespace; optional trailing period.
+  const m = rulingText.match(/[=+]?\s*\(\s*([A-Za-z0-9][A-Za-z0-9\s/.,]{0,15})\s*\)\s*\.?\s*$/);
   if (!m) return null;
-  const code = m[1].toUpperCase();
+  // Pick the first letter-only run that isn't a bare D dept-marker.
+  // Dept-only tags like (D302) yield no code → null (data genuinely lacks a judge code).
+  const codes = m[1].match(/[A-Za-z]+/g) || [];
+  const code = codes.find(c => c.toUpperCase() !== 'D')?.toUpperCase();
+  if (!code) return null;
   if (code === 'JPT') {
     const pt = rulingText.match(/Pro Tem Judge\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+)*?)(?:,|;|\s+a\s+member|\s+member|\s+has been|\s+recuses)/);
     if (pt) return `Judge Pro Tem: ${pt[1].trim()}`;
@@ -61,11 +70,17 @@ function extractJudge(rulingText) {
 }
 
 function scrape() {
-  if (/session\s+has\s+expired|your\s+session\s+(has\s+)?expired|session\s+timed?\s+out/i.test(document.body?.innerText || '')) {
+  const container = document.getElementById('resultsRulings');
+  // Only treat the page as session-expired when the rulings container is
+  // missing or empty — otherwise a ruling that happens to quote "session
+  // expired" in its text would abort an otherwise-valid scrape.
+  const rulingsEmpty = !container || !container.querySelector('tr');
+  if (rulingsEmpty &&
+      /session\s+has\s+expired|your\s+session\s+(has\s+)?expired|session\s+timed?\s+out/i
+        .test(document.body?.innerText || '')) {
     return { sessionExpired: true };
   }
 
-  const container = document.getElementById('resultsRulings');
   if (!container) {
     return { error: 'No results block found. Run a search on this page first.' };
   }
