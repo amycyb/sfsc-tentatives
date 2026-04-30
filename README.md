@@ -1,8 +1,8 @@
-# **[SFSC Tentative Rulings](https://aimesy.github.io/sfsc-tentatives/)**
+# SFSC Tentative Rulings
 
-Daily archive of tentative rulings from the San Francisco Superior Court. Data must be manually collected, so it can be a little out of date. Please e-mail me at me@amyc.us if you have any questions.
+Daily archive of tentative rulings from the San Francisco Superior Court.
 
-I can't take any of the credit for any of the code, which was made by Claude for my use; the extension will not work without a PAT key. If there's any interest, I might devote some compute to building a RECAP-like auto-upload extension.
+**[Browse the data →](https://aimesy.github.io/sfsc-tentatives/)**
 
 ## Repo layout
 
@@ -57,11 +57,11 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary>**Department 302 — Civil Law & Motion** &nbsp;·&nbsp; 46,763 rulings &nbsp;·&nbsp; Latest: 2026-04-28 &nbsp;·&nbsp; 56 gaps</summary>
+<summary>**Department 302 — Civil Law & Motion** &nbsp;·&nbsp; 46,775 rulings &nbsp;·&nbsp; Latest: 2026-04-30 &nbsp;·&nbsp; 57 gaps</summary>
 
-46,763 tentative rulings. Latest: 2026-04-28.
+46,775 tentative rulings. Latest: 2026-04-30.
 
-### Gaps (56)
+### Gaps (57)
 
 - 2015-05-01
 - 2016-04-01
@@ -119,5 +119,6 @@ python update-readme.py
 - 2026-02-05 → 2026-03-02
 - 2026-03-04
 - 2026-03-06 → 2026-04-23
+- 2026-04-29
 
 </details>
