@@ -1,8 +1,8 @@
+# **[LINK TO DATA](https://aimesy.github.io/sfsc-tentatives/)**
+
 # SFSC Tentative Rulings
 
-Daily archive of tentative rulings from the San Francisco Superior Court.
-
-**[Browse the data →](https://aimesy.github.io/sfsc-tentatives/)**
+Daily archive of tentative rulings from the San Francisco Superior Court. Data must be manually collected, so it can be a little out of date. Please e-mail me at me@amyc.us if you have any questions.
 
 ## Repo layout
 
