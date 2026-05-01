@@ -162,7 +162,7 @@ async function startBulk({ dates, tabId, settings, waitMs }) {
     runId: Date.now(),
     running: true, done: false, fatalError: null,
     dates, index: 0, currentDate: null,
-    tabId, settings, waitMs: waitMs || 1000,
+    tabId, settings, waitMs: waitMs || 5000,
     committed: 0, skipped: 0, errors: 0,
     waitingForTab: false,
   };
@@ -348,8 +348,12 @@ async function commitAndAdvance() {
   }
 
   const today = localISO(new Date());
-  const next = nextBusinessDay(currentDate);
-  if (next > today) {
+  const next  = await nextUnscannedBusinessDay({
+    after: currentDate, until: today,
+    token: settings.token, owner, repo, branch,
+    department: data.department || '302',
+  });
+  if (!next) {
     toast(`${commitMsg}. No more business days — you're caught up.`, 'success');
     return;
   }
@@ -359,6 +363,26 @@ async function commitAndAdvance() {
   // then presses the hotkey again. waitMs is short because we don't actually
   // wait for the result here.
   sendMessage(tab.id, { action: 'fill-and-scrape', date: next, waitMs: 100 });
+}
+
+// Walk forward from `after` until we find a weekday that isn't a court holiday
+// AND doesn't already have a raw scrape file in raw/dept<N>/. The dept-dir
+// listing is already cached (60s) by getDeptDir, so this is one HTTP call at
+// most across a chain of hotkey presses.
+async function nextUnscannedBusinessDay({ after, until, token, owner, repo, branch, department }) {
+  let scanned = new Set();
+  try {
+    const files = await getDeptDir(token, owner, repo, branch, department);
+    scanned = new Set(files.map(f => f.name?.slice(0, 10)).filter(Boolean));
+  } catch {
+    // If the listing fails (network/auth), fall back to plain next-business-day.
+  }
+  let d = nextBusinessDay(after);
+  while (d <= until) {
+    if (!scanned.has(d)) return d;
+    d = nextBusinessDay(d);
+  }
+  return null;
 }
 
 async function findSftcTab() {

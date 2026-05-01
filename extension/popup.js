@@ -146,7 +146,7 @@ async function autoScanUnscanned() {
     return;
   }
 
-  const waitMs = parseInt($('bulk-wait').value) || 1_000;
+  const waitMs = parseInt($('bulk-wait').value) || 5_000;
   const settings = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
 
   $('bulk-btn').disabled = true;
@@ -422,7 +422,7 @@ $('bulk-btn').addEventListener('click', async () => {
   const err = validateSettings(s);
   if (err) { setStatus(err, 'error'); return; }
 
-  const waitMs = parseInt($('bulk-wait').value) || 1_000;
+  const waitMs = parseInt($('bulk-wait').value) || 5_000;
   const dates  = weekdaysBetween(from, to);
   if (!dates.length) { setStatus('No weekdays in that range.', 'warn'); return; }
 
