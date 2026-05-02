@@ -17,20 +17,21 @@ on:
         options:
           - all-raw
 
-# Coalesce a bulk-scrape burst into one ingest. The 60-second sleep below
-# is the debounce window: any new push within that window cancels the
-# in-flight run (cancel-in-progress: true) and starts a fresh one. The
-# last push to land in a quiet ≥60s window is the one that actually
-# proceeds, and it picks up every raw file added since the previous bot
-# commit — so a 50-file burst is processed in a single pass instead of
-# fighting itself in 50 racing parallel ingests.
+# Throttle, don't debounce. Every push queues a run; runs execute
+# sequentially via the concurrency group. Each run either does the full
+# batch ingest or no-ops fast. A continuous scan no longer starves the
+# workflow the way `cancel-in-progress: true` did — each burst converges
+# within one or two queued runs.
 #
-# Push and workflow_dispatch share the same group so they can't race on
-# the binary parquet — if you trigger a manual --all-raw repair, pause
-# scanning until it finishes (otherwise your push will cancel the repair).
+# THROTTLE_SECONDS gates back-to-back runs: if the last bot commit
+# landed inside the window we exit immediately, so a 50-file burst that
+# spawned 50 queued runs collapses to ~1 ingest + ~49 fast no-ops.
 concurrency:
   group: ingest
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  THROTTLE_SECONDS: 60
 
 jobs:
   ingest:
@@ -39,16 +40,12 @@ jobs:
       contents: write
 
     steps:
-      - name: Debounce push burst
-        if: github.event_name == 'push'
-        run: sleep 60
-
       - uses: actions/checkout@v4
         with:
           # Need history back to the previous bot commit to compute the
-          # cumulative file list. 100 covers a couple of days of bulk
-          # scrapes; the catch-up branch handles deeper backlogs.
-          fetch-depth: 100
+          # cumulative file list. 200 covers a couple of days of bulk
+          # scrapes; --all-raw handles deeper backlogs.
+          fetch-depth: 200
 
       - uses: actions/setup-python@v5
         with:
@@ -69,6 +66,23 @@ jobs:
           git fetch origin master
           git checkout FETCH_HEAD
 
+          # Throttle gate: if a bot commit landed in the last
+          # THROTTLE_SECONDS, exit fast — the previous run already
+          # processed whatever just got pushed, and the next queued run
+          # after the gate clears will pick up anything else.
+          # workflow_dispatch (manual --all-raw repair) bypasses the gate.
+          if [ "$MODE" != "all-raw" ]; then
+            LAST_BOT_TS=$(git log --author='github-actions\[bot\]' --pretty=format:%ct -1 -- tentatives.parquet)
+            if [ -n "$LAST_BOT_TS" ]; then
+              NOW=$(date +%s)
+              ELAPSED=$((NOW - LAST_BOT_TS))
+              if [ "$ELAPSED" -lt "$THROTTLE_SECONDS" ]; then
+                echo "Throttled — last bot commit was ${ELAPSED}s ago (window: ${THROTTLE_SECONDS}s). Skipping."
+                exit 0
+              fi
+            fi
+          fi
+
           if [ "$MODE" = "all-raw" ]; then
             echo "Catch-up mode: re-ingesting every raw/dept*/*.json"
             python3 ingest.py --all-raw
@@ -88,8 +102,8 @@ jobs:
             else
               echo "Diffing against last bot commit $LAST_BOT"
               # --diff-filter=AM: only files that exist in HEAD (added or
-              # modified). Excludes deletions so we don't try to ingest a
-              # path that no longer exists.
+              # modified). Excludes deletions so we don't try to ingest
+              # a path that no longer exists.
               NEW_FILES=$(git diff --name-only --diff-filter=AM "$LAST_BOT" HEAD -- 'raw/**/*.json' 'raw/*.json')
 
               if [ -z "$NEW_FILES" ]; then
@@ -97,26 +111,25 @@ jobs:
                 exit 0
               fi
 
-              echo "Files to ingest:"
-              echo "$NEW_FILES"
-
+              # Filter out files that vanished from the working tree.
+              EXISTING_FILES=""
               for f in $NEW_FILES; do
-                if [ ! -f "$f" ]; then
-                  echo "  (skip $f — file vanished from working tree)"
-                  continue
-                fi
-                # Pull the dept out of the path (raw/dept<N>/...) so the
-                # row gets tagged correctly even if the JSON wrapper is
-                # missing the field. The wrapper still wins when present.
-                DEPT=$(echo "$f" | sed -n 's|^raw/dept\([0-9]\+\)/.*|\1|p')
-                if [ -n "$DEPT" ]; then
-                  echo "Ingesting $f (dept $DEPT) …"
-                  python3 ingest.py --dept "$DEPT" "$f"
-                else
-                  echo "Ingesting $f …"
-                  python3 ingest.py "$f"
-                fi
+                [ -f "$f" ] && EXISTING_FILES="$EXISTING_FILES $f"
               done
+              if [ -z "$EXISTING_FILES" ]; then
+                echo "All diffed files have vanished from the working tree."
+                exit 0
+              fi
+
+              FILE_COUNT=$(echo $EXISTING_FILES | wc -w)
+              echo "Batch-ingesting $FILE_COUNT file(s) in one merge:"
+              echo "$EXISTING_FILES" | tr ' ' '\n' | head -50
+              [ "$FILE_COUNT" -gt 50 ] && echo "  … and $((FILE_COUNT - 50)) more"
+              # Each file's JSON wrapper carries its own department so
+              # --dept is just a fallback for malformed scrapes. One
+              # invocation does one batched merge instead of N
+              # quadratic-merge calls.
+              python3 ingest.py $EXISTING_FILES
             fi
           fi
 

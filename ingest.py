@@ -506,8 +506,7 @@ def main():
         # Bulk path: load every file into one batch and merge once. Calling
         # `merge` per file would re-run `consolidate_splits` over the growing
         # 50K-row frame on every iteration — quadratic in the number of files
-        # and unusably slow on a 3000-file backlog (the per-commit GitHub
-        # Action sees one file at a time, so it doesn't hit this).
+        # and unusably slow on a 3000-file backlog.
         print("Loading raw files into a batch…")
         all_rows = []
         for i, p in enumerate(sources, 1):
@@ -523,6 +522,26 @@ def main():
         print(f"Merging {len(new_df)} new rows into parquet…")
         existing, inserted, skipped = merge(existing, new_df)
         print(f"Total: {inserted} inserted, {skipped} skipped (duplicates)")
+    elif len(sources) > 1:
+        # Multi-file batch path: same shape as --all-raw but for explicit
+        # paths. The per-commit GitHub Action used to feed this loop one
+        # file at a time, which made consolidate_splits run quadratically
+        # whenever a bulk scrape pushed >10 files at once. One merge keeps
+        # the workflow time linear in the file count.
+        print(f"Batch ingest of {len(sources)} files…")
+        all_rows = []
+        for p in sources:
+            if not p.exists():
+                print(f"  ! not found: {p}")
+                continue
+            try:
+                all_rows.extend(detect_and_load(p, department=args.dept))
+            except Exception as e:
+                print(f"  ! skipped {p.name}: {e}")
+        new_df = to_df(all_rows)
+        print(f"Merging {len(new_df)} new rows into parquet…")
+        existing, inserted, skipped = merge(existing, new_df)
+        print(f"  {inserted} inserted, {skipped} skipped (duplicates)")
     else:
         for p in sources:
             if not p.exists():
