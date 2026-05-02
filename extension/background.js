@@ -1,6 +1,11 @@
 // Service worker: GitHub commits + background bulk scraping + hotkey.
 
-importScripts('./holidays.js'); // exposes COURT_HOLIDAYS, localISO, weekdaysBetween, nextBusinessDay
+// In Chrome MV3 we run as a service worker and load holidays.js via importScripts.
+// In Firefox MV3 we run as an event page; manifest's background.scripts loads
+// holidays.js for us, and importScripts isn't defined here.
+if (typeof importScripts === 'function') {
+  importScripts('./holidays.js'); // exposes COURT_HOLIDAYS, localISO, weekdaysBetween, nextBusinessDay
+}
 
 // ── Message router ────────────────────────────────────────────────────────────
 
@@ -281,7 +286,8 @@ async function bulkHandleResult(job, date, data) {
 }
 
 // ── Hotkey: commit current page and advance to next business day ──────────────
-// Default Alt+Shift+S; user customizes at chrome://extensions/shortcuts.
+// Default Alt+Shift+S; user customizes at chrome://extensions/shortcuts (Chrome)
+// or about:addons → ⚙ → Manage Extension Shortcuts (Firefox).
 
 chrome.commands.onCommand.addListener(async cmd => {
   if (cmd === 'commit-and-next') await commitAndAdvance();

@@ -9,12 +9,19 @@
     "https://api.github.com/*",
     "https://raw.githubusercontent.com/*"
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sfsc-tentatives@aimesy.github.io",
+      "strict_min_version": "115.0"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "SFSC Tentative Rulings"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": ["holidays.js", "background.js"]
   },
   "commands": {
     "commit-and-next": {

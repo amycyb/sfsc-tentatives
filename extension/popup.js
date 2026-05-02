@@ -3,6 +3,9 @@
 const $ = id => document.getElementById(id);
 let scrapedData = null;
 
+// Firefox extensions live under moz-extension://; Chrome under chrome-extension://.
+const IS_FIREFOX = chrome.runtime.getURL('').startsWith('moz-extension://');
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function setStatus(msg, type = '') {
@@ -255,8 +258,11 @@ $('update-download').addEventListener('click', () => {
   $('update-banner').querySelector('span').textContent = 'Downloading…';
   chrome.runtime.sendMessage({ action: 'download-update' }, dlResult => {
     $('update-download').style.display = 'none';
+    const reloadHint = IS_FIREFOX
+      ? 'about:debugging → This Firefox → Reload'
+      : 'chrome://extensions';
     $('update-banner').querySelector('span').textContent = dlResult?.success
-      ? 'Downloaded — unzip sfsc-extension.zip and reload in chrome://extensions'
+      ? `Downloaded — unzip sfsc-extension.zip and reload in ${reloadHint}`
       : 'Download failed — get sfsc-extension.zip from GitHub';
   });
 });
@@ -473,7 +479,13 @@ chrome.commands.getAll(commands => {
   }
 });
 
+// Firefox doesn't allow extensions to open about:addons / about:* pages
+// programmatically — point users to the right place via the status bar instead.
 function openShortcutsPage() {
+  if (IS_FIREFOX) {
+    setStatus('In Firefox: open about:addons → ⚙ menu → Manage Extension Shortcuts', 'warn');
+    return;
+  }
   chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 }
 
