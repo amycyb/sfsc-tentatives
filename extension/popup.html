@@ -270,14 +270,10 @@
           <label>Search timeout (ms)</label>
           <input type="number" id="bulk-wait" value="5000" min="100" step="100" placeholder="ms">
         </div>
-        <div style="flex:1">
-          <label>Pause every N files <span style="font-weight:400;color:#aaa">(blank = no pause)</span></label>
-          <input type="number" id="bulk-batch-size" value="50" min="1" step="1" placeholder="50">
-        </div>
       </div>
       <button id="bulk-btn" disabled>Bulk Scrape Range</button>
       <button id="bulk-stop">Stop</button>
-      <button id="bulk-resume" style="display:none;background:#2a7a4a;color:white;font-size:0.82rem">Resume next batch</button>
+      <button id="bulk-resume" style="display:none;background:#2a7a4a;color:white;font-size:0.82rem">Resume after CAPTCHA</button>
     </div>
 
     <button id="settings-btn">⚙ Settings</button>

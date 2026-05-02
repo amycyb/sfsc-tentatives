@@ -347,6 +347,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     fillAndScrape(msg.date, msg.waitMs).then(respond);
     return true;
   }
+  if (msg.action === 'restart-session') {
+    // The session-expired page has a Restart link whose href is just
+    // `javascript:location.reload(true);`. We invoke the same call —
+    // the SFTC tab reloads, hits the Cloudflare challenge, and the
+    // user solves the CAPTCHA before clicking Resume in the popup.
+    respond({ ok: true });
+    setTimeout(() => location.reload(true), 50);
+    return true;
+  }
   if (msg.action === 'get-date') {
     const input = findDateInput();
     if (!input?.value) { respond({}); return true; }

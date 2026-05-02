@@ -167,9 +167,8 @@ async function autoScanUnscanned() {
     return;
   }
 
-  const waitMs    = parseInt($('bulk-wait').value) || 5_000;
-  const batchSize = parseInt($('bulk-batch-size').value) || 0;
-  const settings  = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
+  const waitMs   = parseInt($('bulk-wait').value) || 5_000;
+  const settings = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
 
   $('bulk-btn').disabled = true;
   $('bulk-stop').style.display = 'block';
@@ -178,7 +177,7 @@ async function autoScanUnscanned() {
   setStatus(`Starting scan of ${unscanned.length} unscanned dates…`, 'loading');
 
   chrome.runtime.sendMessage(
-    { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs, batchSize } },
+    { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs } },
     res => {
       if (res?.error) {
         setStatus('Error starting auto-scan: ' + res.error, 'error');
@@ -410,13 +409,15 @@ function updateBulkStatus(job) {
       job.errors > 0 ? 'warn' : 'success'
     );
     resetBulkButtons();
-  } else if (!job.running && job.pausedAtCap) {
-    // Auto-paused at the user-configured batch cap. Refresh the SFTC tab,
-    // then click Resume to continue with the remaining dates.
+  } else if (!job.running && job.pausedForSession) {
+    // SFTC returned the "session expired" page. We've already auto-reloaded
+    // the tab so the user is staring at the Cloudflare CAPTCHA; once they
+    // solve it (and the SFTC search page comes back), Resume picks up at
+    // the same date that triggered the expiry.
     setStatus(
-      `Paused at ${job.index}/${job.dates?.length} — hit ${job.batchSize}-file cap. ` +
-      `${job.committed} committed, ${job.skipped} skipped, ${job.errors} err. ` +
-      `Refresh the SFTC tab, then Resume.`,
+      `Session expired at ${job.index + 1}/${job.dates?.length} (${job.currentDate || '…'}). ` +
+      `Solve the Cloudflare CAPTCHA in the SFTC tab, then click Resume. ` +
+      `(${job.committed} committed, ${job.skipped} skipped, ${job.errors} err so far)`,
       'warn'
     );
     $('bulk-btn').disabled = false;
@@ -466,9 +467,8 @@ $('bulk-btn').addEventListener('click', async () => {
   const err = validateSettings(s);
   if (err) { setStatus(err, 'error'); return; }
 
-  const waitMs    = parseInt($('bulk-wait').value) || 5_000;
-  const batchSize = parseInt($('bulk-batch-size').value) || 0;
-  const dates     = weekdaysBetween(from, to);
+  const waitMs = parseInt($('bulk-wait').value) || 5_000;
+  const dates  = weekdaysBetween(from, to);
   if (!dates.length) { setStatus('No weekdays in that range.', 'warn'); return; }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -486,7 +486,7 @@ $('bulk-btn').addEventListener('click', async () => {
   setStatus(`Starting background scrape of ${dates.length} dates…`, 'loading');
 
   chrome.runtime.sendMessage(
-    { action: 'start-bulk', payload: { dates, tabId: tab.id, settings, waitMs, batchSize } },
+    { action: 'start-bulk', payload: { dates, tabId: tab.id, settings, waitMs } },
     res => {
       if (res?.error) {
         setStatus('Error starting bulk: ' + res.error, 'error');

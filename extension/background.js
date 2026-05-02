@@ -161,9 +161,11 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
 //   tabId, settings, waitMs,
 //   committed, skipped, errors,
 //   waitingForTab,               // true while a navigation is in flight
-//   batchSize,                   // 0 = no cap; otherwise pause after this many committed+skipped this batch
-//   batchCount,                  // committed + skipped in the current batch (resets on Resume)
-//   pausedAtCap,                 // true when stopped because batchCount hit batchSize
+//   pausedForSession,            // true when SFTC returned the "session expired"
+//                                // page; the tab has been auto-reloaded so the
+//                                // user can solve the Cloudflare CAPTCHA.
+//                                // Resume picks up at the same date that
+//                                // triggered the expiry (index NOT advanced).
 // }
 
 const BULK_ALARM = 'sfsc-bulk-next';
@@ -197,7 +199,7 @@ async function applyJobUpdate(runId, mutator) {
   return next;
 }
 
-async function startBulk({ dates, tabId, settings, waitMs, batchSize }) {
+async function startBulk({ dates, tabId, settings, waitMs }) {
   await chrome.alarms.clear(BULK_ALARM);
   const job = {
     runId: Date.now(),
@@ -206,9 +208,7 @@ async function startBulk({ dates, tabId, settings, waitMs, batchSize }) {
     tabId, settings, waitMs: waitMs || 5000,
     committed: 0, skipped: 0, errors: 0,
     waitingForTab: false,
-    batchSize: batchSize || 0,
-    batchCount: 0,
-    pausedAtCap: false,
+    pausedForSession: false,
   };
   await chrome.storage.local.set({ _bulkJob: job });
   bulkStep();
@@ -219,15 +219,15 @@ async function stopBulk() {
   await chrome.alarms.clear(BULK_ALARM);
   const current = await readJob();
   if (current) await chrome.storage.local.set({
-    _bulkJob: { ...current, running: false, pausedAtCap: false },
+    _bulkJob: { ...current, running: false, pausedForSession: false },
   });
   return { ok: true };
 }
 
-// Resume after an auto-pause (batch cap). Picks up where the job left off
-// with a fresh batch counter and a new tabId (the user almost always has to
-// pick the SFTC tab again after refreshing it). Bumps runId so any in-flight
-// callbacks from the prior batch are discarded.
+// Resume after an auto-pause (session expiry, then CAPTCHA solved). Picks
+// up at the same date that triggered the expiry — the index is intentionally
+// NOT advanced when sessionExpired is detected. Bumps runId so any
+// in-flight callbacks from the prior batch are discarded.
 async function resumeBulk({ tabId }) {
   const current = await readJob();
   if (!current || current.running) return { error: 'No paused job to resume.' };
@@ -241,8 +241,7 @@ async function resumeBulk({ tabId }) {
     running: true, done: false, fatalError: null,
     tabId: tabId || current.tabId,
     waitingForTab: false,
-    batchCount: 0,
-    pausedAtCap: false,
+    pausedForSession: false,
   };
   await chrome.storage.local.set({ _bulkJob: next });
   bulkStep();
@@ -338,25 +337,29 @@ async function bulkHandleResult(job, date, data) {
   const next = await applyJobUpdate(job.runId, j => {
     const u = { ...j, waitingForTab: false };
     if (outcome === 'session') {
+      // Auto-pause: stop the run, leave `index` unchanged so Resume
+      // re-tries the same date, and reload the SFTC tab so the user
+      // hits the Cloudflare CAPTCHA. The page reload happens out-of-band
+      // below so storage state is settled before the tab nav fires.
       u.running = false;
-      u.fatalError = 'Session has expired. Please log in again and Resume.';
+      u.pausedForSession = true;
       return u;
     }
     u[outcome]++;
     u.index++;
-    // Count committed AND skipped against the batch cap — both consume a
-    // GitHub API call and exercise the SFTC session, which is what the
-    // periodic pause is meant to relieve. Errors don't count: they're often
-    // a sign the session already needs refreshing, and we want the user to
-    // see them rather than have them silently push us over the cap.
-    if (outcome === 'committed' || outcome === 'skipped') u.batchCount++;
     if (u.index >= u.dates.length) {
       u.running = false; u.done = true;
-    } else if (u.batchSize && u.batchCount >= u.batchSize) {
-      u.running = false; u.pausedAtCap = true;
     }
     return u;
   });
+
+  if (outcome === 'session') {
+    // Fire-and-forget: tell the content script to reload the page. We don't
+    // await it — the reload tears down the message channel, and the popup's
+    // status listener already shows the paused-for-session prompt.
+    chrome.tabs.sendMessage(job.tabId, { action: 'restart-session' }).catch(() => {});
+    return;
+  }
 
   if (next?.running) chrome.alarms.create(BULK_ALARM, { when: Date.now() + 300 });
 }

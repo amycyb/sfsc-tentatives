@@ -41,6 +41,7 @@ Scrapes the [SFSC tentative rulings page](https://webapps.sftc.org/tr/tr.dll) an
 - **One day** — search a date on the rulings page, click **Send to GitHub**.
 - **Date range** — fill From/To, click **Bulk Scrape Range**. Iterates every weekday in range, skipping weekends and California court holidays.
 - **Auto-fill gaps** — **Scan Unscanned Pages** finds every weekday from the first scanned date to today that's missing, then bulk-scrapes them.
+- **Session expiry** — when SFTC returns its "Your session has expired" page (typically after ~50 search submissions, but the extension watches for the actual page text rather than counting), the bulk run auto-pauses and reloads the SFTC tab so you hit the Cloudflare CAPTCHA. Solve the CAPTCHA, then click **Resume after CAPTCHA** in the popup — scraping resumes at the date that triggered the expiry (no skipped days).
 - **Stop** — halts the bulk run; in-flight commits still finish. Click **Resume** (⏭) to pick up from the day after the last commit.
 - **Updates** — the popup checks GitHub for a newer `sfsc-extension.zip` and offers a one-click download.
 
@@ -50,7 +51,7 @@ The static data browser at `index.html` lazy-loads each department on demand via
 
 ## Ingest
 
-Raw JSON pushed to `raw/dept<N>/` triggers `.github/workflows/ingest.yml`. The workflow waits 60 seconds before doing any work — any further pushes within that window cancel the in-flight run and start a fresh one (`cancel-in-progress: true`), so a 50-file bulk-scrape burst gets coalesced into a single ingest pass instead of 50 racing ones. Each pass diffs against the last bot commit, so any file that a previous cancelled run missed gets picked up automatically; `workflow_dispatch` with `mode: all-raw` re-ingests every raw JSON if a deeper repair is needed.
+Raw JSON pushed to `raw/dept<N>/` triggers `.github/workflows/ingest.yml`. The workflow throttles back-to-back runs: every push queues a run, runs execute sequentially via the concurrency group, and any run within 60 seconds of the last bot commit exits fast — so a 50-file bulk-scrape burst collapses to roughly one ingest plus quick no-ops. Each pass diffs against the last bot commit, so any file that a previous run missed gets picked up automatically; `workflow_dispatch` with `mode: all-raw` re-ingests every raw JSON if a deeper repair is needed.
 
 Local:
 
