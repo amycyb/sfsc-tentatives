@@ -167,16 +167,18 @@ async function autoScanUnscanned() {
     return;
   }
 
-  const waitMs = parseInt($('bulk-wait').value) || 5_000;
-  const settings = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
+  const waitMs    = parseInt($('bulk-wait').value) || 5_000;
+  const batchSize = parseInt($('bulk-batch-size').value) || 0;
+  const settings  = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
 
   $('bulk-btn').disabled = true;
   $('bulk-stop').style.display = 'block';
+  $('bulk-resume').style.display = 'none';
   $('send-btn').disabled = true;
   setStatus(`Starting scan of ${unscanned.length} unscanned dates…`, 'loading');
 
   chrome.runtime.sendMessage(
-    { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs } },
+    { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs, batchSize } },
     res => {
       if (res?.error) {
         setStatus('Error starting auto-scan: ' + res.error, 'error');
@@ -394,6 +396,7 @@ function resetBulkButtons() {
   $('bulk-btn').disabled = false;
   $('auto-scan-btn').disabled = false;
   $('bulk-stop').style.display = 'none';
+  $('bulk-resume').style.display = 'none';
 }
 
 function updateBulkStatus(job) {
@@ -407,6 +410,19 @@ function updateBulkStatus(job) {
       job.errors > 0 ? 'warn' : 'success'
     );
     resetBulkButtons();
+  } else if (!job.running && job.pausedAtCap) {
+    // Auto-paused at the user-configured batch cap. Refresh the SFTC tab,
+    // then click Resume to continue with the remaining dates.
+    setStatus(
+      `Paused at ${job.index}/${job.dates?.length} — hit ${job.batchSize}-file cap. ` +
+      `${job.committed} committed, ${job.skipped} skipped, ${job.errors} err. ` +
+      `Refresh the SFTC tab, then Resume.`,
+      'warn'
+    );
+    $('bulk-btn').disabled = false;
+    $('auto-scan-btn').disabled = false;
+    $('bulk-stop').style.display = 'none';
+    $('bulk-resume').style.display = 'block';
   } else if (!job.running) {
     // Stopped by user — neither fatalError nor done. Show what was completed.
     setStatus(
@@ -425,6 +441,7 @@ function updateBulkStatus(job) {
     );
     $('bulk-btn').disabled = true;
     $('bulk-stop').style.display = 'block';
+    $('bulk-resume').style.display = 'none';
   }
 }
 
@@ -449,8 +466,9 @@ $('bulk-btn').addEventListener('click', async () => {
   const err = validateSettings(s);
   if (err) { setStatus(err, 'error'); return; }
 
-  const waitMs = parseInt($('bulk-wait').value) || 5_000;
-  const dates  = weekdaysBetween(from, to);
+  const waitMs    = parseInt($('bulk-wait').value) || 5_000;
+  const batchSize = parseInt($('bulk-batch-size').value) || 0;
+  const dates     = weekdaysBetween(from, to);
   if (!dates.length) { setStatus('No weekdays in that range.', 'warn'); return; }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -463,11 +481,12 @@ $('bulk-btn').addEventListener('click', async () => {
 
   $('bulk-btn').disabled = true;
   $('bulk-stop').style.display = 'block';
+  $('bulk-resume').style.display = 'none';
   $('send-btn').disabled = true;
   setStatus(`Starting background scrape of ${dates.length} dates…`, 'loading');
 
   chrome.runtime.sendMessage(
-    { action: 'start-bulk', payload: { dates, tabId: tab.id, settings, waitMs } },
+    { action: 'start-bulk', payload: { dates, tabId: tab.id, settings, waitMs, batchSize } },
     res => {
       if (res?.error) {
         setStatus('Error starting bulk: ' + res.error, 'error');
@@ -481,6 +500,27 @@ $('bulk-btn').addEventListener('click', async () => {
 
 $('bulk-stop').addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: 'stop-bulk' });
+});
+
+$('bulk-resume').addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url?.includes('webapps.sftc.org/tr/')) {
+    setStatus('Navigate to the SFSC page first.', 'warn');
+    return;
+  }
+  $('bulk-resume').style.display = 'none';
+  $('bulk-stop').style.display = 'block';
+  setStatus('Resuming next batch…', 'loading');
+  chrome.runtime.sendMessage(
+    { action: 'resume-bulk', payload: { tabId: tab.id } },
+    res => {
+      if (res?.error) {
+        setStatus('Error resuming: ' + res.error, 'error');
+        $('bulk-stop').style.display = 'none';
+        $('bulk-resume').style.display = 'block';
+      }
+    }
+  );
 });
 
 // ── Hotkey hint ───────────────────────────────────────────────────────────────

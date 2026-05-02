@@ -4,6 +4,18 @@ on:
   push:
     paths:
       - 'raw/**/*.json'
+  # Manual catch-up: re-ingests every raw/dept*/*.json from scratch.
+  # Use when the per-commit fast path falls behind a bulk scrape (the
+  # workflow queue can lag tens of files behind a Stop-after-50 batch).
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Ingest mode'
+        required: true
+        default: 'all-raw'
+        type: choice
+        options:
+          - all-raw
 
 # Serialize runs so concurrent pushes don't race to update the parquet.
 # cancel-in-progress: false means queued runs still execute; nothing is lost.
@@ -31,10 +43,17 @@ jobs:
 
       - name: Ingest and commit updated parquet
         run: |
-          NEW_FILES=$(git diff --name-only HEAD^1 HEAD -- 'raw/**/*.json' 'raw/*.json')
-          if [ -z "$NEW_FILES" ]; then
-            echo "No new raw JSON files to ingest."
-            exit 0
+          MODE="${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'incremental' }}"
+
+          if [ "$MODE" = "all-raw" ]; then
+            echo "Catch-up mode: re-ingesting every raw/dept*/*.json"
+            NEW_FILES="ALL_RAW"
+          else
+            NEW_FILES=$(git diff --name-only HEAD^1 HEAD -- 'raw/**/*.json' 'raw/*.json')
+            if [ -z "$NEW_FILES" ]; then
+              echo "No new raw JSON files to ingest."
+              exit 0
+            fi
           fi
 
           git config user.name  "github-actions[bot]"
@@ -45,20 +64,24 @@ jobs:
             git fetch origin master
             git checkout FETCH_HEAD -- tentatives.parquet
 
-            for f in $NEW_FILES; do
-              # Pull the dept out of the path (raw/dept<N>/...) so the row gets
-              # tagged correctly even if the JSON wrapper is missing the field.
-              # The wrapper still wins when present, so this only matters for
-              # malformed scrapes.
-              DEPT=$(echo "$f" | sed -n 's|^raw/dept\([0-9]\+\)/.*|\1|p')
-              if [ -n "$DEPT" ]; then
-                echo "Ingesting $f (dept $DEPT) …"
-                python3 ingest.py --dept "$DEPT" "$f"
-              else
-                echo "Ingesting $f …"
-                python3 ingest.py "$f"
-              fi
-            done
+            if [ "$NEW_FILES" = "ALL_RAW" ]; then
+              python3 ingest.py --all-raw
+            else
+              for f in $NEW_FILES; do
+                # Pull the dept out of the path (raw/dept<N>/...) so the row gets
+                # tagged correctly even if the JSON wrapper is missing the field.
+                # The wrapper still wins when present, so this only matters for
+                # malformed scrapes.
+                DEPT=$(echo "$f" | sed -n 's|^raw/dept\([0-9]\+\)/.*|\1|p')
+                if [ -n "$DEPT" ]; then
+                  echo "Ingesting $f (dept $DEPT) …"
+                  python3 ingest.py --dept "$DEPT" "$f"
+                else
+                  echo "Ingesting $f …"
+                  python3 ingest.py "$f"
+                fi
+              done
+            fi
 
             python3 update-readme.py
 

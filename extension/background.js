@@ -16,6 +16,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, respond) => {
     'download-update': downloadUpdate,
     'start-bulk':    () => startBulk(msg.payload),
     'stop-bulk':     stopBulk,
+    'resume-bulk':   () => resumeBulk(msg.payload),
     'bulk-status':   () => chrome.storage.local.get(['_bulkJob']).then(r => r._bulkJob || null),
   };
   const handler = handlers[msg.action];
@@ -160,6 +161,9 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
 //   tabId, settings, waitMs,
 //   committed, skipped, errors,
 //   waitingForTab,               // true while a navigation is in flight
+//   batchSize,                   // 0 = no cap; otherwise pause after this many committed+skipped this batch
+//   batchCount,                  // committed + skipped in the current batch (resets on Resume)
+//   pausedAtCap,                 // true when stopped because batchCount hit batchSize
 // }
 
 const BULK_ALARM = 'sfsc-bulk-next';
@@ -193,7 +197,7 @@ async function applyJobUpdate(runId, mutator) {
   return next;
 }
 
-async function startBulk({ dates, tabId, settings, waitMs }) {
+async function startBulk({ dates, tabId, settings, waitMs, batchSize }) {
   await chrome.alarms.clear(BULK_ALARM);
   const job = {
     runId: Date.now(),
@@ -202,6 +206,9 @@ async function startBulk({ dates, tabId, settings, waitMs }) {
     tabId, settings, waitMs: waitMs || 5000,
     committed: 0, skipped: 0, errors: 0,
     waitingForTab: false,
+    batchSize: batchSize || 0,
+    batchCount: 0,
+    pausedAtCap: false,
   };
   await chrome.storage.local.set({ _bulkJob: job });
   bulkStep();
@@ -211,7 +218,34 @@ async function startBulk({ dates, tabId, settings, waitMs }) {
 async function stopBulk() {
   await chrome.alarms.clear(BULK_ALARM);
   const current = await readJob();
-  if (current) await chrome.storage.local.set({ _bulkJob: { ...current, running: false } });
+  if (current) await chrome.storage.local.set({
+    _bulkJob: { ...current, running: false, pausedAtCap: false },
+  });
+  return { ok: true };
+}
+
+// Resume after an auto-pause (batch cap). Picks up where the job left off
+// with a fresh batch counter and a new tabId (the user almost always has to
+// pick the SFTC tab again after refreshing it). Bumps runId so any in-flight
+// callbacks from the prior batch are discarded.
+async function resumeBulk({ tabId }) {
+  const current = await readJob();
+  if (!current || current.running) return { error: 'No paused job to resume.' };
+  if (!current.dates || current.index >= current.dates.length) {
+    return { error: 'Nothing left to scrape.' };
+  }
+  await chrome.alarms.clear(BULK_ALARM);
+  const next = {
+    ...current,
+    runId: Date.now(),
+    running: true, done: false, fatalError: null,
+    tabId: tabId || current.tabId,
+    waitingForTab: false,
+    batchCount: 0,
+    pausedAtCap: false,
+  };
+  await chrome.storage.local.set({ _bulkJob: next });
+  bulkStep();
   return { ok: true };
 }
 
@@ -310,7 +344,17 @@ async function bulkHandleResult(job, date, data) {
     }
     u[outcome]++;
     u.index++;
-    if (u.index >= u.dates.length) { u.running = false; u.done = true; }
+    // Count committed AND skipped against the batch cap — both consume a
+    // GitHub API call and exercise the SFTC session, which is what the
+    // periodic pause is meant to relieve. Errors don't count: they're often
+    // a sign the session already needs refreshing, and we want the user to
+    // see them rather than have them silently push us over the cap.
+    if (outcome === 'committed' || outcome === 'skipped') u.batchCount++;
+    if (u.index >= u.dates.length) {
+      u.running = false; u.done = true;
+    } else if (u.batchSize && u.batchCount >= u.batchSize) {
+      u.running = false; u.pausedAtCap = true;
+    }
     return u;
   });
 

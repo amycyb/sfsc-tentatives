@@ -50,6 +50,25 @@ else:
     JUDGE_CODE_MAP = {}
 
 
+_JUDGE_SUFFIX_COMMA_RE = re.compile(r',\s*((?:Jr|Sr|II|III|IV)\.?)', re.IGNORECASE)
+_WS_RE = re.compile(r'\s+')
+
+
+def normalize_judge_name(name):
+    """Canonicalise judge names so Excel and extension-scrape variants merge.
+
+    Strips the optional comma before generational suffixes ("Richard B. Ulmer,
+    Jr." → "Richard B. Ulmer Jr.") and collapses runs of whitespace. Without
+    this the dropdown shows two Ulmer rows: Excel imports use the comma
+    form, JSON scrapes use the no-comma form (extension JUDGE_MAP convention),
+    and they live as distinct strings in the parquet.
+    """
+    if not name or not isinstance(name, str):
+        return name
+    stripped = _JUDGE_SUFFIX_COMMA_RE.sub(r' \1', name)
+    return _WS_RE.sub(' ', stripped).strip()
+
+
 def extract_judge(ruling_text):
     if not ruling_text:
         return None
@@ -199,7 +218,7 @@ def load_xlsx_2020_plus(path, department="302"):
             "court_date":      normalize_date(court_date),
             "hearing_time":    normalize_time(hearing_time),
             "calendar_matter": str(calendar_matter).strip() if calendar_matter else None,
-            "judge":           str(judge).strip() if judge else None,
+            "judge":           normalize_judge_name(str(judge).strip()) if judge else None,
             "ruling":          str(ruling).strip() if ruling else None,
         })
     return rows
@@ -235,7 +254,7 @@ def load_json(path, department=None):
             "court_date":      normalize_date(court_date_raw),
             "hearing_time":    normalize_time(court_date_raw),
             "calendar_matter": rec.get("Calendar Matter", "").strip() or None,
-            "judge":           judge,
+            "judge":           normalize_judge_name(judge),
             "ruling":          ruling_text,
         })
     return rows
@@ -383,6 +402,12 @@ def migrate_existing(df: pd.DataFrame) -> pd.DataFrame:
         df["ruling"] = df.apply(rejoin, axis=1)
         df = df.drop(columns=["admin_notes"])
 
+    # Normalise judge names so the Excel "Richard B. Ulmer, Jr." and the
+    # extension-scrape "Richard B. Ulmer Jr." stop appearing as two rows in
+    # the dropdown / charts.
+    if "judge" in df.columns:
+        df["judge"] = df["judge"].apply(normalize_judge_name)
+
     # consolidate_splits already recomputes the hash and dedupes; we just need
     # to ensure the canonical column order/presence on its way out.
     df = consolidate_splits(df)
@@ -447,26 +472,66 @@ def main():
                         help="Department to tag rows with when the source file "
                              "doesn't carry one (Excel imports + legacy bare-list "
                              "JSON). Extension-format JSON wrappers always win.")
+    parser.add_argument("--all-raw", action="store_true",
+                        help="Ingest every JSON under raw/dept*/. Useful as a "
+                             "catch-up when the per-commit GitHub Action falls "
+                             "behind a bulk scrape (idempotent — relies on "
+                             "row_hash dedup + consolidate_splits).")
     parser.add_argument("paths", nargs="*",
-                        help="Source files to ingest. If omitted, falls back to "
-                             "the original Excel exports in the repo root.")
+                        help="Source files to ingest. If omitted (and --all-raw "
+                             "is not set), falls back to the original Excel "
+                             "exports in the repo root.")
     args = parser.parse_args()
 
     existing = pd.read_parquet(PARQUET) if PARQUET.exists() else pd.DataFrame(columns=COLUMNS)
     existing = migrate_existing(existing)
 
-    sources = [Path(p) for p in args.paths] if args.paths else [
-        HERE / "tentatives.xlsm",
-        HERE / "sfsc tentatives 01-2020 to 07-2025.xlsx",
-    ]
-    for p in sources:
-        if not p.exists():
-            print(f"Not found: {p.name if not args.paths else p}")
-            continue
-        print(f"Loading {p.name} (dept default = {args.dept})...")
-        new_df = to_df(detect_and_load(p, department=args.dept))
+    if args.all_raw:
+        # Walk every dept's raw/*.json. Each file's wrapper carries its own
+        # department, so --dept is just a fallback for malformed scrapes.
+        sources = sorted((HERE / "raw").glob("dept*/*.json"))
+        if not sources:
+            print("No raw JSON files found under raw/dept*/")
+        else:
+            print(f"Catch-up ingest of {len(sources)} raw JSON files…")
+    elif args.paths:
+        sources = [Path(p) for p in args.paths]
+    else:
+        sources = [
+            HERE / "tentatives.xlsm",
+            HERE / "sfsc tentatives 01-2020 to 07-2025.xlsx",
+        ]
+
+    if args.all_raw:
+        # Bulk path: load every file into one batch and merge once. Calling
+        # `merge` per file would re-run `consolidate_splits` over the growing
+        # 50K-row frame on every iteration — quadratic in the number of files
+        # and unusably slow on a 3000-file backlog (the per-commit GitHub
+        # Action sees one file at a time, so it doesn't hit this).
+        print("Loading raw files into a batch…")
+        all_rows = []
+        for i, p in enumerate(sources, 1):
+            if not p.exists():
+                continue
+            try:
+                all_rows.extend(detect_and_load(p, department=args.dept))
+            except Exception as e:
+                print(f"  ! skipped {p.name}: {e}")
+            if i % 250 == 0:
+                print(f"  loaded {i}/{len(sources)} files, {len(all_rows)} rows so far")
+        new_df = to_df(all_rows)
+        print(f"Merging {len(new_df)} new rows into parquet…")
         existing, inserted, skipped = merge(existing, new_df)
-        print(f"  {inserted} inserted, {skipped} skipped (duplicates)")
+        print(f"Total: {inserted} inserted, {skipped} skipped (duplicates)")
+    else:
+        for p in sources:
+            if not p.exists():
+                print(f"Not found: {p.name if not args.paths else p}")
+                continue
+            print(f"Loading {p.name} (dept default = {args.dept})...")
+            new_df = to_df(detect_and_load(p, department=args.dept))
+            existing, inserted, skipped = merge(existing, new_df)
+            print(f"  {inserted} inserted, {skipped} skipped (duplicates)")
 
     print("Saving parquet...")
     save_parquet(existing)
