@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Regenerate README.md from tentatives.parquet — one collapsible section per department."""
 
+import json
 import re
 import pandas as pd
 import holidays as hol
 from datetime import date, timedelta
 from pathlib import Path
 
-HERE   = Path(__file__).parent
-README = HERE / 'README.md'
+HERE     = Path(__file__).parent
+README   = HERE / 'README.md'
+COVERAGE = HERE / 'coverage'
 
 DEPT_NAMES = {
     '302': 'Department 302 — Civil Law & Motion',
@@ -190,6 +192,27 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
 
     return f'<details>\n<summary>{summary}</summary>\n{body}</details>\n'
 
+def write_coverage(dept: str, df_dept: pd.DataFrame):
+    """Write coverage/dept<N>.json — the union of dates that appear in the
+    parquet (court_date) and dates with a raw scrape file. The browser
+    extension uses this to decide which dates still need scraping; without
+    it, the extension only sees raw filenames and treats every parquet-only
+    date as unscanned (the historical Excel imports populated 2017-2024
+    rulings without any raw files)."""
+    parquet_dates = set(df_dept['court_date'].dropna().unique())
+    file_dates    = scraped_dates_for_dept(dept)
+    covered       = sorted(parquet_dates | file_dates)
+    COVERAGE.mkdir(exist_ok=True)
+    out = COVERAGE / f'dept{dept}.json'
+    out.write_text(json.dumps({
+        'department': dept,
+        'covered':    covered,
+        'min':        covered[0] if covered else None,
+        'max':        covered[-1] if covered else None,
+        'count':      len(covered),
+    }, indent=0, separators=(',', ':')))
+
+
 def main():
     if not (HERE / 'tentatives.parquet').exists():
         print('tentatives.parquet not found'); return
@@ -199,11 +222,13 @@ def main():
 
     sections = ''
     for dept in sorted(df['department'].unique()):
-        sections += dept_section(dept, df[df['department'] == dept])
+        sub = df[df['department'] == dept]
+        sections += dept_section(dept, sub)
+        write_coverage(dept, sub)
 
     content = STATIC_TOP + '## Departments\n\n' + sections
     README.write_text(content)
-    print(f'Updated README.md — {len(df["department"].unique())} department(s)')
+    print(f'Updated README.md and coverage/ for {len(df["department"].unique())} department(s)')
 
 if __name__ == '__main__':
     main()

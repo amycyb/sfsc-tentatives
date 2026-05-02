@@ -2,229 +2,258 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SFSC Tentative Rulings</title>
+  <title>SF Superior Court — Tentative Rulings</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f4f6f9;
-      color: #111;
-      font-size: 13px;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      color: #222; background: #f4f6f9;
+      font-size: 13px; line-height: 1.45;
     }
 
     /* ── Header ── */
     header {
-      background: #1a3a5c;
-      color: white;
-      padding: 0 1.25rem;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      height: 44px;
-    }
-    .header-left { display: flex; align-items: center; gap: 1rem; }
-    header h1 { font-size: 0.95rem; font-weight: 600; white-space: nowrap; }
-    #stats { font-size: 0.73rem; opacity: 0.65; white-space: nowrap; }
-    .header-right { display: flex; align-items: center; gap: 0.5rem; }
-
-    .hbtn {
-      display: inline-flex; align-items: center; gap: 0.35rem;
-      padding: 0.3rem 0.7rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      white-space: nowrap;
-      text-decoration: none;
-    }
-    .hbtn-ghost {
-      background: rgba(255,255,255,0.12);
-      color: white;
-    }
-    .hbtn-ghost:hover { background: rgba(255,255,255,0.22); }
-    .hbtn-accent {
-      background: #f0a500;
-      color: #1a2a00;
-    }
-    .hbtn-accent:hover { background: #f8b820; }
-
-    /* ── Toolbar ── */
-    .toolbar {
-      background: white;
-      border-bottom: 1px solid #d0d7de;
-      padding: 0.4rem 1.25rem;
-      flex-shrink: 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      align-items: center;
-    }
-    .toolbar input, .toolbar select {
-      padding: 0.28rem 0.55rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      background: white;
-      height: 26px;
-    }
-    #search { width: 220px; }
-    .sep { width: 1px; height: 18px; background: #ddd; margin: 0 0.1rem; flex-shrink: 0; }
-    .toolbar label { font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 0.3rem; }
-
-    .btn {
-      padding: 0.28rem 0.7rem;
-      border: 1px solid #ccc; border-radius: 4px;
-      background: white; font-size: 0.78rem;
-      cursor: pointer; height: 26px;
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      white-space: nowrap; color: #333;
-    }
-    .btn:hover { background: #f0f5ff; border-color: #a0b4cc; }
-    .btn:disabled { opacity: 0.4; cursor: default; }
-    .btn-primary { background: #1a3a5c; color: white; border-color: #1a3a5c; }
-    .btn-primary:hover { background: #214d78; }
-
-    /* ── Result bar ── */
-    .result-bar {
-      padding: 0.22rem 1.25rem;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e8eaed;
-      font-size: 0.72rem; color: #666;
-      flex-shrink: 0;
-      display: flex; align-items: center; justify-content: space-between;
-      min-height: 22px;
-    }
-
-    /* ── Table ── */
-    .table-wrap { flex: 1; overflow: auto; position: relative; }
-
-    table {
-      width: 100%; border-collapse: collapse;
-      font-size: 0.8rem; table-layout: fixed;
-    }
-    thead { position: sticky; top: 0; z-index: 10; }
-    th {
       background: #1a3a5c; color: white;
-      padding: 0.32rem 0.6rem;
-      text-align: left; font-size: 0.7rem; font-weight: 600;
-      letter-spacing: 0.03em; text-transform: uppercase;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      user-select: none; border-right: 1px solid #214d78;
+      padding: 0.75rem 1rem;
+      display: flex; align-items: center;
+      gap: 1rem; flex-wrap: wrap;
     }
-    th:last-child { border-right: none; }
-    th.sortable { cursor: pointer; }
-    th.sortable:hover { background: #214d78; }
-    th.sort-asc::after  { content: ' ▲'; font-size: 0.6rem; }
-    th.sort-desc::after { content: ' ▼'; font-size: 0.6rem; }
-
-    .col-dept   { width: 52px; }
-    .col-date   { width: 86px; }
-    .col-time   { width: 48px; }
-    .col-case   { width: 108px; }
-    .col-title  { width: 20%; }
-    .col-motion { width: 28%; }
-    .col-judge  { width: 135px; }
-    .col-ruling { width: auto; min-width: 100px; }
-
-    td {
-      padding: 0.26rem 0.6rem;
-      border-bottom: 1px solid #eaecef; border-right: 1px solid #f0f2f4;
-      vertical-align: top; overflow: hidden; text-overflow: ellipsis;
-      white-space: nowrap; max-width: 0;
+    header h1 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+    .header-left  { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+    .header-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+    #stats {
+      font-size: 0.8rem; opacity: 0.85;
+      display: inline-flex; align-items: center; gap: 0.35rem;
     }
-    td:last-child { border-right: none; }
+    .hbtn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white; cursor: pointer;
+      font-size: 0.78rem; font-weight: 500;
+      padding: 0.32rem 0.7rem; border-radius: 4px;
+    }
+    .hbtn:hover    { background: rgba(255,255,255,0.22); }
+    .hbtn.active   { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.5); }
+    .hbtn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Toolbar (chip filters) ── */
+    .toolbar {
+      background: white; border-bottom: 1px solid #d8dee8;
+      padding: 0.55rem 1rem;
+      display: flex; flex-wrap: wrap;
+      align-items: center; gap: 0.4rem;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.25rem 0.45rem;
+      background: #eef3fb; border: 1px solid #ccd6e6; border-radius: 4px;
+      font-size: 0.74rem; color: #1a3a5c;
+    }
+    .chip > label { font-size: 0.72rem; color: #555; }
+    .chip input, .chip select {
+      border: none; background: transparent;
+      font-size: 0.78rem; padding: 0.05rem 0.1rem;
+      color: #1a3a5c; max-width: 160px;
+    }
+    .chip input:focus, .chip select:focus { outline: 2px solid #5a8fc8; outline-offset: 0; border-radius: 2px; }
+    .chip input[type=date] { width: 110px; }
+    .chip input[type=search] { width: 180px; }
+    .toolbar .sep {
+      width: 1px; height: 20px; background: #d8dee8;
+      margin: 0 0.2rem;
+    }
+    .toolbar label.size { font-size: 0.73rem; color: #666; display: flex; align-items: center; gap: 0.3rem; }
+    .toolbar label.size select {
+      padding: 0.15rem; font-size: 0.73rem;
+      border: 1px solid #ccc; border-radius: 3px;
+    }
+    .btn {
+      padding: 0.32rem 0.7rem; background: #f0f3f8;
+      border: 1px solid #c2ccd9; border-radius: 4px;
+      cursor: pointer; font-size: 0.74rem; color: #1a3a5c;
+    }
+    .btn:hover { background: #e3eaf5; }
+
+    /* ── Filter builder ── */
+    .filter-builder {
+      background: white; border-bottom: 1px solid #d8dee8;
+      padding: 0.5rem 1rem 0.7rem;
+      display: none;
+    }
+    .filter-builder.open { display: block; }
+    .filter-row {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      align-items: center; margin-bottom: 0.35rem;
+    }
+    .filter-row select, .filter-row input {
+      padding: 0.25rem 0.4rem; font-size: 0.78rem;
+      border: 1px solid #c2ccd9; border-radius: 3px; background: white;
+    }
+    .filter-row select:focus, .filter-row input:focus {
+      outline: none; border-color: #5a8fc8; box-shadow: 0 0 0 1px #5a8fc8;
+    }
+    .filter-row .x {
+      width: 22px; height: 22px;
+      border: none; background: transparent;
+      color: #888; cursor: pointer; font-size: 1rem; padding: 0;
+    }
+    .filter-row .x:hover { color: #c0392b; }
+    #add-filter-btn {
+      font-size: 0.74rem; padding: 0.25rem 0.55rem;
+    }
+
+    /* ── Charts panel ── */
+    .charts-panel {
+      background: white; border-bottom: 1px solid #d8dee8;
+      padding: 0.75rem 1rem;
+      display: none;
+    }
+    .charts-panel.open { display: block; }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 0.85rem;
+    }
+    .chart-card {
+      background: #fafbfd; border: 1px solid #e1e6ee; border-radius: 5px;
+      padding: 0.55rem 0.65rem 0.6rem; min-height: 240px;
+      display: flex; flex-direction: column;
+    }
+    .chart-card h3 {
+      margin: 0 0 0.4rem; font-size: 0.78rem;
+      font-weight: 600; color: #1a3a5c;
+    }
+    .chart-wrap { flex: 1; position: relative; min-height: 200px; }
+
+    /* ── Result bar / table ── */
+    .result-bar {
+      padding: 0.4rem 1rem; font-size: 0.78rem;
+      color: #555; background: white; border-bottom: 1px solid #e8edf4;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #qspinner {
+      width: 11px; height: 11px;
+      border: 2px solid #ccc; border-top-color: #1a3a5c;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    #qspinner.on { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .table-wrap { background: white; overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 0.78rem;
+    }
+    th, td {
+      text-align: left; padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid #eef0f4; vertical-align: top;
+    }
+    th {
+      background: #f4f6f9; color: #555; font-weight: 600;
+      position: sticky; top: 0; z-index: 1;
+      white-space: nowrap;
+    }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: #e8edf4; }
+    th.sort-asc::after  { content: ' ▲'; font-size: 0.7em; }
+    th.sort-desc::after { content: ' ▼'; font-size: 0.7em; }
     tbody tr { cursor: pointer; }
-    tbody tr:hover td { background: #eef3fb; }
-    tbody tr:nth-child(even) td { background: #fafbfc; }
-    tbody tr:nth-child(even):hover td { background: #eef3fb; }
-    .no-data { text-align: center; padding: 2rem; color: #999; }
+    tbody tr:hover { background: #f7faff; }
+    .col-dept    { width: 50px; white-space: nowrap; }
+    .col-date    { width: 95px; white-space: nowrap; }
+    .col-time    { width: 65px; white-space: nowrap; }
+    .col-case    { width: 110px; font-family: monospace; }
+    .col-mtype   { width: 200px; }
+    .col-judge   { width: 165px; }
+    .col-ruling  { color: #666; }
+    .mtype-pill {
+      display: inline-block; padding: 1px 6px;
+      background: #eef3fb; border: 1px solid #ccd6e6;
+      border-radius: 10px; font-size: 0.72rem; color: #1a3a5c;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mtype-sub { font-size: 0.7rem; color: #888; margin-top: 1px; }
+    .no-data {
+      text-align: center; padding: 2.5rem; color: #888; font-style: italic;
+    }
+    #loading {
+      padding: 3rem 1rem; text-align: center; color: #555;
+    }
+    #loading .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #d8dee8; border-top-color: #1a3a5c;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 0.6rem;
+    }
+    #load-detail { font-size: 0.78rem; color: #888; margin-top: 0.3rem; }
+    #error-bar {
+      padding: 0.6rem 1rem; background: #fff0f0;
+      border-bottom: 1px solid #f5c6c6; color: #7a2020;
+      font-size: 0.8rem; display: none;
+    }
 
     /* ── Pager ── */
     .pager {
-      flex-shrink: 0; display: flex; align-items: center;
-      justify-content: center; gap: 0.25rem;
-      padding: 0.35rem; border-top: 1px solid #d0d7de; background: white;
+      display: flex; gap: 0.3rem; padding: 0.55rem 1rem;
+      align-items: center; justify-content: center;
+      background: white; border-top: 1px solid #d8dee8;
     }
     .pager button {
-      padding: 0.2rem 0.5rem; border: 1px solid #ccc;
-      background: white; border-radius: 3px; cursor: pointer;
-      font-size: 0.75rem; min-width: 28px;
+      padding: 0.25rem 0.55rem; background: #f0f3f8;
+      border: 1px solid #c2ccd9; border-radius: 3px;
+      cursor: pointer; font-size: 0.78rem; color: #1a3a5c;
     }
-    .pager button.active { background: #1a3a5c; color: white; border-color: #1a3a5c; }
-    .pager button:hover:not(.active):not(:disabled) { background: #f0f5ff; }
-    .pager button:disabled { opacity: 0.35; cursor: default; }
-    #page-info { font-size: 0.72rem; color: #666; padding: 0 0.4rem; white-space: nowrap; }
+    .pager button:hover:not(:disabled) { background: #e3eaf5; }
+    .pager button:disabled { opacity: 0.4; cursor: default; }
+    #page-info { font-size: 0.78rem; color: #555; margin: 0 0.4rem; }
 
-    /* ── Loading / Error ── */
-    #loading {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      background: #f4f6f9; gap: 0.65rem; color: #555;
-    }
-    .spinner {
-      width: 2rem; height: 2rem;
-      border: 3px solid #ddd; border-top-color: #1a3a5c;
-      border-radius: 50%; animation: spin 0.65s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #load-detail { font-size: 0.75rem; color: #aaa; }
-    #error-bar {
-      display: none; padding: 0.55rem 1.25rem;
-      background: #fff0f0; border-bottom: 1px solid #f5c6c6;
-      color: #7a2020; font-size: 0.8rem;
-    }
-    #qspinner {
-      width: 12px; height: 12px;
-      border: 2px solid #ddd; border-top-color: #1a3a5c;
-      border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
-    }
-    #qspinner.on { display: inline-block; }
-
-    /* ── Detail modal ── */
+    /* ── Modal ── */
     .overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45); z-index: 200;
+      background: rgba(0,0,0,0.5); z-index: 200;
       padding: 2rem 1rem; overflow-y: auto;
     }
-    .overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+    .overlay.open {
+      display: flex; align-items: flex-start; justify-content: center;
+    }
     .modal {
-      background: white; border-radius: 6px;
-      max-width: 860px; width: 100%;
-      padding: 1.25rem 1.5rem; position: relative; margin: auto;
+      background: white; border-radius: 8px;
+      max-width: 760px; width: 100%;
+      padding: 1.5rem 1.75rem; position: relative; margin: auto;
     }
-    .modal h2 { font-size: 0.95rem; margin-bottom: 0.2rem; padding-right: 2rem; }
-    .modal .meta { font-size: 0.74rem; color: #888; margin-bottom: 0.7rem; }
-    .modal .motion {
-      font-size: 0.8rem; color: #444; font-style: italic;
-      background: #f7f8fa; border-left: 3px solid #1a3a5c;
-      padding: 0.4rem 0.7rem; margin-bottom: 0.7rem; border-radius: 0 4px 4px 0;
+    .modal h2 { font-size: 1.05rem; margin: 0 0 0.4rem; padding-right: 1.5rem; }
+    .meta {
+      font-size: 0.78rem; color: #666; margin-bottom: 0.85rem;
+      display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center;
     }
-    .modal .ruling { font-size: 0.85rem; line-height: 1.8; white-space: pre-wrap; }
-    .modal .admin-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-      color: #888; margin: 1rem 0 0.3rem; }
-    .modal .admin-notes { font-size: 0.78rem; line-height: 1.6; color: #666;
-      white-space: pre-wrap; border-top: 1px dashed #ddd; padding-top: 0.6rem; }
+    .meta .pill {
+      background: #eef3fb; border: 1px solid #ccd6e6;
+      padding: 1px 7px; border-radius: 10px;
+      font-size: 0.72rem; color: #1a3a5c;
+    }
+    .motion {
+      font-size: 0.85rem; font-weight: 500;
+      margin-bottom: 0.6rem; color: #1a3a5c;
+    }
+    .ruling, .admin-notes, .courtcall {
+      font-size: 0.85rem; line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .section-label {
+      font-size: 0.72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: #888; margin: 0.95rem 0 0.25rem;
+    }
     .modal-close {
-      position: absolute; top: 0.8rem; right: 0.8rem;
-      background: none; border: none; font-size: 1.4rem;
+      position: absolute; top: 0.6rem; right: 0.7rem;
+      width: 26px; height: 26px;
+      border: none; background: none; font-size: 1.1rem;
       cursor: pointer; color: #aaa; line-height: 1;
     }
     .modal-close:hover { color: #333; }
 
-    @media (max-width: 680px) {
+    @media (max-width: 720px) {
       .col-time, .col-dept { display: none; }
-      #search { width: 140px; }
-      #stats { display: none; }
     }
   </style>
 </head>
@@ -236,33 +265,80 @@
     <span id="stats">Loading…</span>
   </div>
   <div class="header-right">
-    <button class="hbtn hbtn-ghost" id="export-btn">⬇ CSV</button>
+    <button class="hbtn" id="charts-btn" title="Show charts">📊 Charts</button>
+    <button class="hbtn" id="advanced-btn" title="Add custom filter">+ Filter</button>
+    <button class="hbtn" id="export-btn">⬇ CSV</button>
   </div>
 </header>
 
+<div id="error-bar"></div>
+
 <div class="toolbar" id="toolbar" style="display:none">
-  <input type="search" id="search" placeholder="Search…">
-  <div class="sep"></div>
-  <label>From <input type="date" id="date-from" style="width:120px"></label>
-  <label>To <input type="date" id="date-to" style="width:120px"></label>
-  <div class="sep"></div>
-  <select id="dept" style="width:95px"><option value="">All depts</option></select>
-  <select id="judge" style="width:145px"><option value="">All judges</option></select>
-  <div class="sep"></div>
+  <span class="chip">
+    <label for="search">Search</label>
+    <input type="search" id="search" placeholder="case #, title, ruling…">
+  </span>
+  <span class="chip">
+    <label for="date-from">From</label>
+    <input type="date" id="date-from">
+  </span>
+  <span class="chip">
+    <label for="date-to">To</label>
+    <input type="date" id="date-to">
+  </span>
+  <span class="chip">
+    <label for="dept">Dept</label>
+    <select id="dept"><option value="">All</option></select>
+  </span>
+  <span class="chip">
+    <label for="judge">Judge</label>
+    <select id="judge"><option value="">All</option></select>
+  </span>
+  <span class="chip">
+    <label for="mtype">Motion type</label>
+    <select id="mtype"><option value="">All</option></select>
+  </span>
+  <span class="chip" id="msub-chip" style="display:none">
+    <label for="msub">Subtype</label>
+    <select id="msub"><option value="">All</option></select>
+  </span>
   <button class="btn" id="clear-btn">✕ Clear</button>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:0.4rem">
-    <label style="font-size:0.73rem;color:#666">Rows
-      <select id="page-size" style="padding:0.15rem;font-size:0.73rem;border:1px solid #ccc;border-radius:3px;height:auto">
-        <option value="50">50</option>
-        <option value="100">100</option>
-        <option value="250">250</option>
-        <option value="500">500</option>
-      </select>
-    </label>
-  </div>
+  <span class="sep"></span>
+  <label class="size">Rows
+    <select id="page-size">
+      <option value="50">50</option>
+      <option value="100">100</option>
+      <option value="250">250</option>
+      <option value="500">500</option>
+    </select>
+  </label>
 </div>
 
-<div id="error-bar"></div>
+<div class="filter-builder" id="filter-builder">
+  <div id="filter-rows"></div>
+  <button class="btn" id="add-filter-btn">+ Add filter</button>
+</div>
+
+<div class="charts-panel" id="charts-panel">
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Rulings per month</h3>
+      <div class="chart-wrap"><canvas id="chart-time"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Top motion types</h3>
+      <div class="chart-wrap"><canvas id="chart-mtype"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Top judges</h3>
+      <div class="chart-wrap"><canvas id="chart-judge"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Motion-type composition over time</h3>
+      <div class="chart-wrap"><canvas id="chart-stack"></canvas></div>
+    </div>
+  </div>
+</div>
 
 <div class="result-bar" id="result-bar" style="display:none">
   <span id="result-info"></span>
@@ -278,13 +354,14 @@
   <table id="grid" style="display:none">
     <thead>
       <tr>
-        <th class="col-dept  sortable" data-col="department">Dept</th>
-        <th class="col-date  sortable sort-desc" data-col="court_date">Date</th>
+        <th class="col-dept   sortable" data-col="department">Dept</th>
+        <th class="col-date   sortable sort-desc" data-col="court_date">Date</th>
         <th class="col-time">Time</th>
-        <th class="col-case  sortable" data-col="case_number">Case #</th>
-        <th class="col-title sortable" data-col="case_title">Case Title</th>
-        <th class="col-motion">Motion</th>
-        <th class="col-judge sortable" data-col="judge">Judge</th>
+        <th class="col-case   sortable" data-col="case_number">Case #</th>
+        <th class="col-title  sortable" data-col="case_title">Case Title</th>
+        <th class="col-mtype">Motion Type</th>
+        <th class="col-motion">Motion Caption</th>
+        <th class="col-judge  sortable" data-col="judge">Judge</th>
         <th class="col-ruling">Ruling (excerpt)</th>
       </tr>
     </thead>
@@ -300,7 +377,6 @@
   <button id="pg-last">»</button>
 </div>
 
-<!-- Row detail modal -->
 <div class="overlay" id="overlay">
   <div class="modal">
     <button class="modal-close" id="modal-close">×</button>
@@ -308,28 +384,172 @@
     <div class="meta" id="modal-meta"></div>
     <div class="motion" id="modal-motion"></div>
     <div class="ruling" id="modal-ruling"></div>
-    <div class="admin-label" id="modal-admin-label" style="display:none">Administrative notes</div>
+    <div class="section-label" id="modal-admin-label" style="display:none">Administrative notes</div>
     <div class="admin-notes" id="modal-admin"></div>
+    <div class="section-label" id="modal-cc-label" style="display:none">Remote-appearance / CourtCall</div>
+    <div class="courtcall" id="modal-cc"></div>
   </div>
 </div>
 
 <script type="module">
 import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/+esm';
+import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4/auto/+esm';
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ─── Browser-side enrichment: motion type/subtype, admin split, CourtCall ────
+
+// Motion-type rules. Order matters — first match wins.
+// Each rule: [test fn, type label, optional subtype fn for Compel Discovery].
+const MOTION_RULES = [
+  [t => /\banti[-\s]?slapp\b|\bccp\s*425\.16\b|\b425\.16\b|\bspecial\s+motion\s+to\s+strike\b/i.test(t),
+    'Special Motion to Strike (CCP 425.16/Anti-SLAPP)'],
+  [t => /\bdemurrer\b/i.test(t), 'Demurrer'],
+  [t => /\bmotion to strike\b|\bmtn to strike\b|\band motion to strike\b|\bmotion (?:and|of) (?:notice )?to strike\b/i.test(t),
+    'Motion to Strike'],
+  [t => /\bsummary judgment\b|\bsummary adjudication\b|\bmsj\b/i.test(t),
+    'Summary Judgment / Adjudication'],
+  [t => /\bjudgment on the pleadings\b/i.test(t), 'Judgment on the Pleadings'],
+  [t => /\bcompel\s+arbitration\b/i.test(t), 'Compel Arbitration'],
+  [t => /\bcompel\b/i.test(t), 'Compel Discovery', compelSubtype],
+  [t => /\bmotion to quash\b.*\bsubpoena\b|\bquash subpoena\b/i.test(t), 'Quash Subpoena'],
+  [t => /\bmotion to quash\b/i.test(t), 'Quash Service / Jurisdiction'],
+  [t => /\bprotective order\b/i.test(t), 'Protective Order'],
+  [t => /\bdeem.*admissions?\s+admitted\b|\brequests?\s+for\s+admissions?\s+admitted\b|\border\s+establishing\s+admissions\b|\bestablishing\s+admissions\b/i.test(t),
+    'Deem RFAs Admitted'],
+  [t => /\bsanctions?\b/i.test(t), 'Sanctions'],
+  [t => /\battorney(?:'?s)?\s*fees?\b|\battorneys?\s*fees\b|\batty\s*fees?\b|\btax (?:memo of )?costs\b|\bstrike\s+memo\s+of\s+costs\b|\bmotion\s+(?:to|for)\s+strike\s+costs\b/i.test(t),
+    'Attorney Fees / Costs'],
+  [t => /\bpro hac vice\b/i.test(t), 'Pro Hac Vice'],
+  [t => /\brelieved as counsel\b|\bwithdraw(?:al)? (?:as|of) (?:attorney|counsel)\b|\bwithdraw as counsel\b/i.test(t),
+    'Counsel — Withdraw / Be Relieved'],
+  [t => /\bset aside\b.*\b(?:default|judgment|order|dismissal)\b|\bvacate\b.*\b(?:default|judgment|order|renewal)\b|\bleave to defend\b/i.test(t),
+    'Set Aside / Vacate'],
+  [t => /\bclaim of exemption\b/i.test(t), 'Claim of Exemption'],
+  [t => /\bright to attach\b|\bwrit of attachment\b|\battach(?:ment)? order\b/i.test(t), 'Right to Attach'],
+  [t => /\border to show cause\b|\bosc\b/i.test(t), 'Order to Show Cause'],
+  [t => /\bpetition\b.*\bconfirm\b.*\barb(?:itration)?\b|\bconfirm arb(?:itration)? award\b/i.test(t),
+    'Petition to Confirm Arbitration Award'],
+  [t => /\barbitration\b/i.test(t), 'Arbitration (other)'],
+  [t => /\bgood faith settlement\b/i.test(t), 'Good Faith Settlement'],
+  [t => /\bfinal approval\b/i.test(t) && !/\bclass\b|\bsettlement\b/i.test(t), 'Final Approval Hearing'],
+  [t => /\bapprove(?:.*settlement)?\b|\bsettlement.*approve\b|\bclass action settlement\b|\bclass settlement\b|\bproposition\s*65\b|\bprop\.?\s*65\b|\bpreliminary approval\b|\bfinal approval\b/i.test(t),
+    'Approve Settlement'],
+  [t => /\bconsolidat(?:e|ion|ing)\b/i.test(t), 'Consolidate'],
+  [t => /\bsever(?:ance|ed|ing)?\b|\bbifurcat(?:e|ed|ing|ion)\b/i.test(t), 'Sever / Bifurcate'],
+  [t => /\bforum non conveniens\b/i.test(t), 'Forum Non Conveniens'],
+  [t => /\bstay\b/i.test(t), 'Stay'],
+  [t => /\bdismiss(?:al)?\b/i.test(t), 'Dismiss'],
+  [t => /\breceiver\b/i.test(t), 'Receiver'],
+  [t => /\bpreliminary injunction\b|\btemporary restraining order\b|\btro\b/i.test(t), 'Injunction / TRO'],
+  [t => /\blis pendens\b|\bexpunge\b/i.test(t), 'Lis Pendens / Expunge'],
+  [t => /\breconsider(?:ation)?\b|\bnew trial\b/i.test(t), 'Reconsideration / New Trial'],
+  [t => /\bclass certificat(?:ion|e)\b|\bcertify class\b|\bcertify a class\b/i.test(t), 'Class Certification'],
+  [t => /\bintervene\b|\bintervention\b/i.test(t), 'Intervene'],
+  [t => /\bleave to file\b|\bleave to amend\b|\bamend complaint\b|\bfile (?:an? )?amended\b/i.test(t),
+    'Leave to Amend / File'],
+  [t => /\bsale of dwelling\b|\bsale of (?:real )?property\b/i.test(t), 'Sale of Dwelling / Property'],
+  [t => /\bassignment of right\b|\bassignment order\b|\bassignment of rights\b/i.test(t), 'Assignment Order'],
+  [t => /\brenewal of judgment\b/i.test(t), 'Renewal of Judgment'],
+  [t => /\bcontempt\b/i.test(t), 'Contempt'],
+  [t => /\bcontinuance\b|\badvance hearing\b|\bcontinue (?:the )?hearing\b/i.test(t), 'Continuance / Advance'],
+  [t => /\b(?:to |motion to |under )seal\b|\bfile\s+(?:records\s+)?under\s+seal\b/i.test(t), 'Sealing'],
+  [t => /\bchange of venue\b|\btransfer (?:of )?venue\b|\btransfer venue\b|\bmotion to transfer\b|\bvenue\b/i.test(t),
+    'Venue'],
+  [t => /\bcompliance hearing\b/i.test(t), 'Compliance Hearing'],
+  [t => /\bwrit of mandate\b|\bpetition for writ\b/i.test(t), 'Writ of Mandate'],
+  [t => /\bwrit of possession\b/i.test(t), 'Writ of Possession'],
+  [t => /\benforce settlement\b|\bmotion to enforce\b/i.test(t), 'Enforce Settlement'],
+  [t => /\bentry of (?:consent )?judgment\b/i.test(t), 'Entry of Judgment'],
+  [t => /\bpetition\b.*\btransfer\b.*\bpayment\b|\bstructured settlement\b/i.test(t),
+    'Structured Settlement Transfer'],
+];
+
+function compelSubtype(t) {
+  if (/\barbitration\b/i.test(t)) return null; // handled by Compel Arbitration
+  if (/\bfurther\b.*\b(?:response|production|interrog|admission|document)\b/i.test(t)
+      || /\bfurther responses?\b/i.test(t))
+    return 'Further Responses';
+  if (/\bdeposition\b|\bpmq\b|\bpmk\b|\bperson most\b/i.test(t)) return 'Deposition';
+  if (/\b(?:document )?production\b|\bproduce\s+documents?\b/i.test(t)) return 'Production';
+  if (/\binterrogator\w+\b/i.test(t)) return 'Interrogatories';
+  if (/\brequests?\s+for\s+admission|\brfa\b|\brfas\b/i.test(t)) return 'Requests for Admission';
+  if (/\bsubpoena\b/i.test(t)) return 'Subpoena Compliance';
+  if (/\bresponses?\s+to\b/i.test(t)) return 'Initial Responses';
+  return 'Other';
+}
+
+function classifyMotion(cm) {
+  if (!cm) return { type: 'Miscellaneous', subtype: null };
+  for (const rule of MOTION_RULES) {
+    if (rule[0](cm)) {
+      const sub = rule[2] ? rule[2](cm) : null;
+      return { type: rule[1], subtype: sub };
+    }
+  }
+  return { type: 'Miscellaneous', subtype: null };
+}
+
+// "Any party who contests a tentative ruling" is the canonical Dept-302
+// boundary between substantive ruling and admin boilerplate. Splitting
+// happens here in the browser so the parquet stays a single column.
+const ADMIN_BOUNDARY_RE = /\s*Any\s+part(?:y|ies)\s+who\s+contests?\s+a\s+tentative\s+ruling/i;
+// CourtCall / Zoom / remote-appearance prose lives inside the admin block.
+const COURTCALL_RE = /(?:CourtCall|9:00\s*a\.m\.\s+Discovery\s+calendar|appear\s+remotely|Zoom\b|videoconference|sfsuperiorcourt\.org|telephonic\s+appearance|remote\s+appearance)/i;
+
+function splitRuling(full) {
+  if (!full) return { ruling: '', admin: '', courtcall: '' };
+  const m = ADMIN_BOUNDARY_RE.exec(full);
+  let substantive = full, adminBlock = '';
+  if (m) {
+    substantive = full.slice(0, m.index).replace(/[\s.,;:]+$/, '');
+    adminBlock  = full.slice(m.index).trim();
+  }
+  // Inside admin, peel off the CourtCall paragraph if present.
+  let admin = adminBlock, courtcall = '';
+  if (adminBlock && COURTCALL_RE.test(adminBlock)) {
+    const sentences = adminBlock.split(/(?<=[.!?])\s+(?=[A-Z(])/);
+    const cc = [], rest = [];
+    for (const s of sentences) {
+      (COURTCALL_RE.test(s) ? cc : rest).push(s);
+    }
+    courtcall = cc.join(' ').trim();
+    admin     = rest.join(' ').trim();
+  }
+  return { ruling: substantive.trim(), admin, courtcall };
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
 let conn, totalRows = 0, currentPage = 0, lastCount = 0, PAGE_SIZE = 50;
 let sortCol = 'court_date', sortDir = 'DESC', rows = [];
 const $ = id => document.getElementById(id);
-const searchEl = $('search'), dateFrom = $('date-from'), dateTo = $('date-to');
-const deptEl = $('dept'), judgeEl = $('judge');
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+const searchEl  = $('search'),  dateFrom  = $('date-from'), dateTo = $('date-to');
+const deptEl    = $('dept'),    judgeEl   = $('judge');
+const mtypeEl   = $('mtype'),   msubEl    = $('msub'), msubChip = $('msub-chip');
+
+// Custom filters added via "+ Add filter".
+let customFilters = []; // [{id, col, op, value}]
+let nextFilterId = 1;
+const FILTER_COLS = [
+  ['case_number',     'Case Number',      ['contains', 'is', 'is not']],
+  ['case_title',      'Case Title',       ['contains', 'is', 'is not']],
+  ['court_date',      'Court Date',       ['on', 'before', 'after', 'between']],
+  ['hearing_time',    'Hearing Time',     ['is', 'is not', 'contains']],
+  ['calendar_matter', 'Motion Caption',   ['contains', 'is', 'is not']],
+  ['motion_type',     'Motion Type',      ['is', 'is not']],
+  ['motion_subtype',  'Motion Subtype',   ['is', 'is not', 'contains']],
+  ['judge',           'Judge',            ['is', 'is not', 'contains']],
+  ['department',      'Department',       ['is', 'is not']],
+  ['ruling',          'Ruling text',      ['contains', 'does not contain']],
+  ['admin_notes',     'Admin notes',      ['contains', 'does not contain']],
+  ['courtcall',       'Remote / CourtCall info', ['contains', 'does not contain']],
+];
+
+// ─── Init ────────────────────────────────────────────────────────────────────
 try {
   $('load-msg').textContent = 'Downloading data…';
   const res = await fetch('./tentatives.parquet');
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching tentatives.parquet`);
 
-  // Streamed download with progress
   let buf;
   if (res.body) {
     const total = +res.headers.get('Content-Length') || 0;
@@ -361,14 +581,12 @@ try {
   await db.registerFileBuffer('data.parquet', buf);
   conn = await db.connect();
 
-  // Stats
   const s = (await conn.query(
     `SELECT COUNT(*) n, MIN(court_date) lo, MAX(court_date) hi FROM 'data.parquet'`
   )).toArray()[0];
   totalRows = Number(s.n);
   $('stats').textContent = `${totalRows.toLocaleString()} rulings · ${s.lo} → ${s.hi}`;
 
-  // Dropdowns
   for (const r of (await conn.query(
     `SELECT DISTINCT department FROM 'data.parquet' WHERE department IS NOT NULL ORDER BY department`
   )).toArray()) deptEl.appendChild(new Option(`Dept ${r.department}`, r.department));
@@ -377,9 +595,15 @@ try {
     `SELECT DISTINCT judge FROM 'data.parquet' WHERE judge IS NOT NULL AND judge!='' ORDER BY judge`
   )).toArray()) judgeEl.appendChild(new Option(r.judge, r.judge));
 
+  // Motion-type dropdown — sorted by frequency in current dataset.
+  const motionCounts = await classifyAll();
+  const sortedTypes = [...motionCounts.entries()].sort((a, b) => b[1] - a[1]);
+  for (const [t, n] of sortedTypes) {
+    mtypeEl.appendChild(new Option(`${t} (${n.toLocaleString()})`, t));
+  }
+
   dateFrom.value = s.lo; dateTo.value = s.hi;
 
-  // Show UI
   $('loading').style.display = 'none';
   $('grid').style.display = '';
   $('toolbar').style.display = '';
@@ -388,7 +612,6 @@ try {
 
   restoreState();
 
-  // Sort headers
   document.querySelectorAll('th.sortable').forEach(th =>
     th.addEventListener('click', () => {
       const col = th.dataset.col;
@@ -411,21 +634,161 @@ try {
   console.error(err);
 }
 
-// ── Query ─────────────────────────────────────────────────────────────────────
+// ─── Categorisation cache ────────────────────────────────────────────────────
+// Compute Motion Type for every distinct calendar_matter once; reuse on every
+// query. The dropdown's frequency labels reflect parquet-wide counts; the
+// per-row tagging happens at render time using this cache.
+let MTYPE_CACHE = new Map(); // calendar_matter (lowercased trimmed) -> {type, subtype}
+
+async function classifyAll() {
+  const all = (await conn.query(
+    `SELECT calendar_matter, COUNT(*) n FROM 'data.parquet' GROUP BY calendar_matter`
+  )).toArray();
+  const counts = new Map();   // type -> count
+  const subCounts = new Map();// type|subtype -> count (for Q4 fold)
+  for (const r of all) {
+    const cm = r.calendar_matter || '';
+    const cls = classifyMotion(cm);
+    MTYPE_CACHE.set(cm, cls);
+    counts.set(cls.type, (counts.get(cls.type) || 0) + Number(r.n));
+    if (cls.subtype) {
+      const k = `${cls.type}|${cls.subtype}`;
+      subCounts.set(k, (subCounts.get(k) || 0) + Number(r.n));
+    }
+  }
+  // Q4 (B): any final type below 3 → Miscellaneous.
+  const small = [...counts.entries()].filter(([, n]) => n < 3).map(([t]) => t);
+  if (small.length) {
+    for (const [cm, cls] of MTYPE_CACHE) {
+      if (small.includes(cls.type)) {
+        counts.set('Miscellaneous', (counts.get('Miscellaneous') || 0)
+          + (counts.get(cls.type) || 0));
+        MTYPE_CACHE.set(cm, { type: 'Miscellaneous', subtype: null });
+      }
+    }
+    for (const t of small) counts.delete(t);
+  }
+  return counts;
+}
+
+function lookupMotion(cm) {
+  return MTYPE_CACHE.get(cm || '') || classifyMotion(cm || '');
+}
+
+// ─── Filtering ───────────────────────────────────────────────────────────────
+// Two-stage: SQL WHERE on parquet columns, then in-JS filter for derived
+// columns (motion_type, motion_subtype, courtcall). For chip filters we mostly
+// stay SQL-only; for motion-type we precompute the matching calendar_matters
+// and inline an IN list, which keeps queries fast even on the full 50K rows.
+
+function escapeSql(s) { return (s ?? '').replace(/'/g, "''"); }
+
+function calendarMattersForType(type) {
+  if (!type) return null;
+  const out = [];
+  for (const [cm, cls] of MTYPE_CACHE) {
+    if (cls.type === type) out.push(cm);
+  }
+  return out;
+}
+
+function calendarMattersForSubtype(type, sub) {
+  if (!type || !sub) return null;
+  const out = [];
+  for (const [cm, cls] of MTYPE_CACHE) {
+    if (cls.type === type && cls.subtype === sub) out.push(cm);
+  }
+  return out;
+}
+
 function buildWhere() {
-  const q     = searchEl.value.trim().replace(/'/g, "''");
+  const q     = escapeSql(searchEl.value.trim());
   const from  = dateFrom.value, to = dateTo.value;
   const dept  = deptEl.value, judge = judgeEl.value;
+  const mtype = mtypeEl.value, msub = msubEl.value;
   const parts = [];
   if (from)  parts.push(`court_date >= '${from}'`);
   if (to)    parts.push(`court_date <= '${to}'`);
-  if (dept)  parts.push(`department = '${dept.replace(/'/g,"''")}'`);
-  if (judge) parts.push(`judge = '${judge.replace(/'/g,"''")}'`);
-  if (q)     parts.push(`(case_number ILIKE '%${q}%' OR case_title ILIKE '%${q}%' OR ruling ILIKE '%${q}%' OR admin_notes ILIKE '%${q}%')`);
+  if (dept)  parts.push(`department = '${escapeSql(dept)}'`);
+  if (judge) parts.push(`judge = '${escapeSql(judge)}'`);
+  if (q)     parts.push(`(case_number ILIKE '%${q}%' OR case_title ILIKE '%${q}%' OR ruling ILIKE '%${q}%' OR calendar_matter ILIKE '%${q}%')`);
+  if (mtype) {
+    const cms = msub ? calendarMattersForSubtype(mtype, msub) : calendarMattersForType(mtype);
+    if (cms?.length) {
+      // Chunk to avoid hitting expression length limits on very common types.
+      const escaped = cms.map(c => `'${escapeSql(c || '')}'`).join(',');
+      parts.push(`COALESCE(calendar_matter, '') IN (${escaped})`);
+    } else {
+      parts.push('FALSE');
+    }
+  }
+  for (const f of customFilters) {
+    const sql = filterToSql(f);
+    if (sql) parts.push(sql);
+  }
   return parts.length ? parts.join(' AND ') : 'TRUE';
 }
 
+function filterToSql(f) {
+  const v = (f.value ?? '').trim();
+  // Some columns are derived (browser-side); for those we resolve via the
+  // calendar_matter cache so the WHERE clause stays SQL-shaped.
+  if (f.col === 'motion_type' || f.col === 'motion_subtype') {
+    if (!v) return null;
+    const cms = f.col === 'motion_type'
+      ? calendarMattersForType(v)
+      : (() => {
+          // motion_subtype filter without a type: scan all types
+          const out = [];
+          for (const [cm, cls] of MTYPE_CACHE) if (cls.subtype === v) out.push(cm);
+          return out;
+        })();
+    if (!cms?.length) return 'FALSE';
+    const list = cms.map(c => `'${escapeSql(c || '')}'`).join(',');
+    return f.op === 'is not'
+      ? `COALESCE(calendar_matter, '') NOT IN (${list})`
+      : `COALESCE(calendar_matter, '') IN (${list})`;
+  }
+  if (f.col === 'courtcall') {
+    // Approximation: if any CourtCall keyword appears in the full ruling.
+    const expr = `(ruling ILIKE '%CourtCall%' OR ruling ILIKE '%appear remotely%' OR ruling ILIKE '%Zoom%' OR ruling ILIKE '%sfsuperiorcourt.org%' OR ruling ILIKE '%videoconference%')`;
+    return f.op === 'does not contain' ? `NOT ${expr}` : expr;
+  }
+  if (f.col === 'admin_notes') {
+    // Admin notes live after the "Any party who contests…" boundary, which we
+    // split out at display time. As a SQL approximation we require both the
+    // boundary phrase and the search term to appear in the ruling text.
+    const ev = escapeSql(v);
+    if (!ev) return null;
+    const boundary = "ruling ILIKE '%Any part%who contest%tentative ruling%'";
+    const hit      = `ruling ILIKE '%${ev}%'`;
+    return f.op === 'does not contain'
+      ? `(NOT (${boundary}) OR NOT (${hit}))`
+      : `${boundary} AND ${hit}`;
+  }
+  if (!v && f.op !== 'is' && f.op !== 'is not') return null;
+  const col = f.col;
+  const ev = escapeSql(v);
+  switch (f.op) {
+    case 'is':              return `${col} = '${ev}'`;
+    case 'is not':          return `(${col} IS NULL OR ${col} <> '${ev}')`;
+    case 'contains':        return `${col} ILIKE '%${ev}%'`;
+    case 'does not contain':return `(${col} IS NULL OR ${col} NOT ILIKE '%${ev}%')`;
+    case 'on':              return `${col} = '${ev}'`;
+    case 'before':          return `${col} < '${ev}'`;
+    case 'after':           return `${col} > '${ev}'`;
+    case 'between': {
+      const [a, b] = v.split('..').map(s => s.trim());
+      if (!a || !b) return null;
+      return `${col} BETWEEN '${escapeSql(a)}' AND '${escapeSql(b)}'`;
+    }
+  }
+  return null;
+}
+
+// ─── Query ───────────────────────────────────────────────────────────────────
 async function runQuery(page = 0) {
+  if (!conn) return;
   currentPage = page;
   const where = buildWhere(), offset = page * PAGE_SIZE;
   $('qspinner').classList.add('on');
@@ -435,7 +798,7 @@ async function runQuery(page = 0) {
       conn.query(`SELECT COUNT(*) n FROM 'data.parquet' WHERE ${where}`),
       conn.query(`
         SELECT department, case_number, case_title, court_date, hearing_time,
-               calendar_matter, judge, ruling, admin_notes
+               calendar_matter, judge, ruling
         FROM 'data.parquet' WHERE ${where}
         ORDER BY ${sortCol} ${sortDir}, case_number
         LIMIT ${PAGE_SIZE} OFFSET ${offset}
@@ -448,26 +811,35 @@ async function runQuery(page = 0) {
     $('result-info').textContent =
       `${lastCount.toLocaleString()} row${lastCount !== 1 ? 's' : ''}` +
       (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+
+    if ($('charts-panel').classList.contains('open')) {
+      refreshCharts(where);
+    }
   } finally { $('qspinner').classList.remove('on'); }
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+// ─── Render ──────────────────────────────────────────────────────────────────
 function renderTable(data) {
   const tbody = $('tbody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="no-data">No rulings match your filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No rulings match your filters.</td></tr>';
     return;
   }
-  tbody.innerHTML = data.map((r, i) => `<tr data-idx="${i}">
-    <td class="col-dept">${esc(r.department)}</td>
-    <td class="col-date">${r.court_date ?? ''}</td>
-    <td class="col-time">${r.hearing_time ?? ''}</td>
-    <td class="col-case">${esc(r.case_number)}</td>
-    <td class="col-title">${esc(r.case_title)}</td>
-    <td class="col-motion">${esc(r.calendar_matter)}</td>
-    <td class="col-judge">${esc(r.judge)}</td>
-    <td class="col-ruling">${esc((r.ruling ?? '').slice(0, 120))}</td>
-  </tr>`).join('');
+  tbody.innerHTML = data.map((r, i) => {
+    const m = lookupMotion(r.calendar_matter);
+    const sub = m.subtype ? `<div class="mtype-sub">${esc(m.subtype)}</div>` : '';
+    return `<tr data-idx="${i}">
+      <td class="col-dept">${esc(r.department)}</td>
+      <td class="col-date">${r.court_date ?? ''}</td>
+      <td class="col-time">${r.hearing_time ?? ''}</td>
+      <td class="col-case">${esc(r.case_number)}</td>
+      <td class="col-title">${esc(r.case_title)}</td>
+      <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
+      <td class="col-motion">${esc(r.calendar_matter)}</td>
+      <td class="col-judge">${esc(r.judge)}</td>
+      <td class="col-ruling">${esc((splitRuling(r.ruling).ruling).slice(0, 140))}</td>
+    </tr>`;
+  }).join('');
   window._rows = data;
   tbody.querySelectorAll('tr').forEach(tr =>
     tr.addEventListener('click', () => openModal(window._rows[+tr.dataset.idx]))
@@ -498,31 +870,188 @@ $('page-size').addEventListener('change', () => {
   PAGE_SIZE = +$('page-size').value; runQuery(0);
 });
 
-// ── CSV export ────────────────────────────────────────────────────────────────
+// ─── Charts (Chart.js) ───────────────────────────────────────────────────────
+const charts = {};
+function makeOrUpdate(id, config) {
+  const ctx = $(id);
+  if (!ctx) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, config);
+}
+
+async function refreshCharts(where) {
+  const [byMonth, byMtype, byJudge, byMonthMtype] = await Promise.all([
+    conn.query(`SELECT strftime(CAST(court_date AS DATE), '%Y-%m') m, COUNT(*) n
+                FROM 'data.parquet' WHERE ${where}
+                GROUP BY m ORDER BY m`),
+    conn.query(`SELECT calendar_matter, COUNT(*) n
+                FROM 'data.parquet' WHERE ${where}
+                GROUP BY calendar_matter`),
+    conn.query(`SELECT COALESCE(judge, '(unspecified)') j, COUNT(*) n
+                FROM 'data.parquet' WHERE ${where}
+                GROUP BY j ORDER BY n DESC LIMIT 12`),
+    conn.query(`SELECT strftime(CAST(court_date AS DATE), '%Y') y, calendar_matter, COUNT(*) n
+                FROM 'data.parquet' WHERE ${where}
+                GROUP BY y, calendar_matter ORDER BY y`),
+  ]);
+
+  // Time series
+  const tm = byMonth.toArray();
+  makeOrUpdate('chart-time', {
+    type: 'line',
+    data: {
+      labels:   tm.map(r => r.m),
+      datasets: [{
+        label: 'Rulings', data: tm.map(r => Number(r.n)),
+        borderColor: '#1a3a5c', backgroundColor: 'rgba(26,58,92,0.15)',
+        tension: 0.25, pointRadius: 0, fill: true, borderWidth: 1.4,
+      }],
+    },
+    options: chartOpts({ legend: false, x: { type: 'category', ticks: { maxTicksLimit: 12 } } }),
+  });
+
+  // Motion-type bar (top 12)
+  const mtCounts = new Map();
+  for (const r of byMtype.toArray()) {
+    const t = lookupMotion(r.calendar_matter).type;
+    mtCounts.set(t, (mtCounts.get(t) || 0) + Number(r.n));
+  }
+  const mt = [...mtCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+  makeOrUpdate('chart-mtype', {
+    type: 'bar',
+    data: {
+      labels:   mt.map(r => r[0]),
+      datasets: [{
+        label: 'Rulings', data: mt.map(r => r[1]),
+        backgroundColor: '#2e6da4', borderRadius: 3,
+      }],
+    },
+    options: chartOpts({
+      indexAxis: 'y',
+      legend: false,
+      x: { beginAtZero: true },
+      y: { ticks: { font: { size: 10 } } },
+    }),
+  });
+
+  // Judges bar
+  const jr = byJudge.toArray();
+  makeOrUpdate('chart-judge', {
+    type: 'bar',
+    data: {
+      labels:   jr.map(r => r.j),
+      datasets: [{
+        label: 'Rulings', data: jr.map(r => Number(r.n)),
+        backgroundColor: '#2a7a4a', borderRadius: 3,
+      }],
+    },
+    options: chartOpts({
+      indexAxis: 'y',
+      legend: false,
+      x: { beginAtZero: true },
+      y: { ticks: { font: { size: 10 } } },
+    }),
+  });
+
+  // Stacked area: top 6 motion types per year
+  const yMap = new Map(); // year -> Map(type -> count)
+  for (const r of byMonthMtype.toArray()) {
+    const t = lookupMotion(r.calendar_matter).type;
+    if (!yMap.has(r.y)) yMap.set(r.y, new Map());
+    const inner = yMap.get(r.y);
+    inner.set(t, (inner.get(t) || 0) + Number(r.n));
+  }
+  const years = [...yMap.keys()].sort();
+  const totals = new Map();
+  for (const inner of yMap.values()) for (const [t, n] of inner) totals.set(t, (totals.get(t) || 0) + n);
+  const top = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(r => r[0]);
+  const palette = ['#1a3a5c', '#2e6da4', '#5a8fc8', '#2a7a4a', '#7aa6d2', '#b8860b'];
+  const stackData = top.map((t, i) => ({
+    label: t,
+    data: years.map(y => yMap.get(y).get(t) || 0),
+    backgroundColor: palette[i],
+    borderColor: palette[i],
+    fill: true, tension: 0.25, pointRadius: 0, borderWidth: 0,
+  }));
+  makeOrUpdate('chart-stack', {
+    type: 'line',
+    data: { labels: years, datasets: stackData },
+    options: chartOpts({
+      x: { type: 'category' },
+      y: { stacked: true, beginAtZero: true },
+      stacked: true,
+    }),
+  });
+}
+
+function chartOpts(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: extra.legend !== false, position: 'bottom',
+                labels: { font: { size: 10 } } },
+      tooltip: { mode: 'index', intersect: false },
+    },
+    interaction: { mode: 'nearest', intersect: false },
+    scales: {
+      x: { grid: { color: '#eef0f4' }, ticks: { font: { size: 10 } }, ...(extra.x || {}) },
+      y: { grid: { color: '#eef0f4' }, ticks: { font: { size: 10 } }, beginAtZero: true,
+           stacked: !!extra.stacked, ...(extra.y || {}) },
+    },
+    indexAxis: extra.indexAxis || 'x',
+  };
+}
+
+// ─── Charts toggle ───────────────────────────────────────────────────────────
+$('charts-btn').addEventListener('click', () => {
+  const panel = $('charts-panel');
+  const open = panel.classList.toggle('open');
+  $('charts-btn').classList.toggle('active', open);
+  if (open) refreshCharts(buildWhere());
+});
+
+// ─── CSV export ──────────────────────────────────────────────────────────────
 $('export-btn').addEventListener('click', async () => {
   if (!conn) return;
   const orig = $('export-btn').textContent;
   $('export-btn').disabled = true; $('export-btn').textContent = '…';
   const all = (await conn.query(`
     SELECT department, case_number, case_title, court_date, hearing_time,
-           calendar_matter, judge, ruling, admin_notes
+           calendar_matter, judge, ruling
     FROM 'data.parquet' WHERE ${buildWhere()}
     ORDER BY ${sortCol} ${sortDir}, case_number
   `)).toArray();
   const cols = ['department','case_number','case_title','court_date','hearing_time',
-                'calendar_matter','judge','ruling','admin_notes'];
-  const csv = [cols.join(','), ...all.map(r =>
-    cols.map(c => csvCell(r[c])).join(','))].join('\n');
+                'calendar_matter','motion_type','motion_subtype','judge','ruling','admin_notes','courtcall'];
+  const lines = [cols.join(',')];
+  for (const r of all) {
+    const m = lookupMotion(r.calendar_matter);
+    const sp = splitRuling(r.ruling);
+    const rec = {
+      department: r.department, case_number: r.case_number, case_title: r.case_title,
+      court_date: r.court_date, hearing_time: r.hearing_time,
+      calendar_matter: r.calendar_matter, motion_type: m.type, motion_subtype: m.subtype || '',
+      judge: r.judge, ruling: sp.ruling, admin_notes: sp.admin, courtcall: sp.courtcall,
+    };
+    lines.push(cols.map(c => csvCell(rec[c])).join(','));
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
   a.download = `sfsc-rulings-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   $('export-btn').disabled = false; $('export-btn').textContent = orig;
 });
 
-// ── Clear ─────────────────────────────────────────────────────────────────────
+// ─── Clear ───────────────────────────────────────────────────────────────────
 $('clear-btn').addEventListener('click', async () => {
-  searchEl.value = ''; deptEl.value = ''; judgeEl.value = '';
+  searchEl.value = '';
+  deptEl.value = '';
+  judgeEl.value = '';
+  mtypeEl.value = '';
+  msubEl.value = '';
+  msubChip.style.display = 'none';
+  customFilters = [];
+  renderFilterRows();
   if (conn) {
     const s = (await conn.query(
       `SELECT MIN(court_date) lo, MAX(court_date) hi FROM 'data.parquet'`
@@ -532,29 +1061,121 @@ $('clear-btn').addEventListener('click', async () => {
   runQuery(0);
 });
 
-// ── Row detail modal ──────────────────────────────────────────────────────────
+// ─── Motion-type → subtype dropdown chaining ─────────────────────────────────
+mtypeEl.addEventListener('change', () => {
+  const t = mtypeEl.value;
+  const subs = new Set();
+  if (t) {
+    for (const cls of MTYPE_CACHE.values()) {
+      if (cls.type === t && cls.subtype) subs.add(cls.subtype);
+    }
+  }
+  msubEl.innerHTML = '<option value="">All</option>';
+  if (subs.size) {
+    for (const s of [...subs].sort()) msubEl.appendChild(new Option(s, s));
+    msubChip.style.display = '';
+  } else {
+    msubChip.style.display = 'none';
+    msubEl.value = '';
+  }
+  runQuery(0);
+});
+msubEl.addEventListener('change', () => runQuery(0));
+
+// ─── "+ Add filter" builder ─────────────────────────────────────────────────
+$('advanced-btn').addEventListener('click', () => {
+  const fb = $('filter-builder');
+  const open = fb.classList.toggle('open');
+  $('advanced-btn').classList.toggle('active', open);
+  if (open && customFilters.length === 0) addCustomFilter();
+});
+
+$('add-filter-btn').addEventListener('click', () => addCustomFilter());
+
+function addCustomFilter() {
+  customFilters.push({ id: nextFilterId++, col: 'ruling', op: 'contains', value: '' });
+  renderFilterRows();
+}
+
+function renderFilterRows() {
+  const wrap = $('filter-rows');
+  wrap.innerHTML = '';
+  for (const f of customFilters) {
+    const row = document.createElement('div');
+    row.className = 'filter-row';
+    const colSel = document.createElement('select');
+    for (const [c, label] of FILTER_COLS) colSel.appendChild(new Option(label, c));
+    colSel.value = f.col;
+    const opSel = document.createElement('select');
+    const valIn = document.createElement('input');
+    valIn.placeholder = 'value';
+    valIn.value = f.value || '';
+    function refreshOps() {
+      const colDef = FILTER_COLS.find(c => c[0] === colSel.value);
+      const ops = colDef ? colDef[2] : ['contains'];
+      opSel.innerHTML = '';
+      for (const op of ops) opSel.appendChild(new Option(op, op));
+      if (!ops.includes(f.op)) f.op = ops[0];
+      opSel.value = f.op;
+      // Date column gets a date input
+      if (colSel.value === 'court_date') {
+        valIn.type = f.op === 'between' ? 'text' : 'date';
+        valIn.placeholder = f.op === 'between' ? 'YYYY-MM-DD..YYYY-MM-DD' : '';
+      } else {
+        valIn.type = 'text';
+        valIn.placeholder = 'value';
+      }
+    }
+    refreshOps();
+    colSel.addEventListener('change', () => { f.col = colSel.value; refreshOps(); runQuery(0); });
+    opSel.addEventListener('change',  () => { f.op  = opSel.value;  refreshOps(); runQuery(0); });
+    valIn.addEventListener('input',   () => { f.value = valIn.value; debounceQuery(); });
+    valIn.addEventListener('change',  () => { f.value = valIn.value; runQuery(0); });
+    const x = document.createElement('button');
+    x.className = 'x'; x.textContent = '×'; x.title = 'Remove filter';
+    x.addEventListener('click', () => {
+      customFilters = customFilters.filter(g => g.id !== f.id);
+      renderFilterRows();
+      runQuery(0);
+    });
+    row.append(colSel, opSel, valIn, x);
+    wrap.appendChild(row);
+  }
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
 function openModal(r) {
-  $('modal-title').textContent  = r.case_title ?? '';
-  $('modal-meta').textContent   = [r.department ? `Dept ${r.department}` : null,
-    r.case_number, r.court_date, r.hearing_time, r.judge].filter(Boolean).join(' · ');
+  $('modal-title').textContent = r.case_title ?? '';
+  const m = lookupMotion(r.calendar_matter);
+  const sp = splitRuling(r.ruling);
+  const meta = $('modal-meta');
+  meta.innerHTML = '';
+  const pills = [
+    r.department ? `Dept ${r.department}` : null,
+    r.case_number, r.court_date, r.hearing_time, r.judge,
+    m.type, m.subtype && `· ${m.subtype}`,
+  ].filter(Boolean);
+  for (const p of pills) {
+    const span = document.createElement('span');
+    span.className = 'pill'; span.textContent = p;
+    meta.appendChild(span);
+  }
   $('modal-motion').textContent = r.calendar_matter ?? '';
-  $('modal-ruling').textContent = r.ruling ?? '';
-  const admin = r.admin_notes ?? '';
-  $('modal-admin').textContent  = admin;
-  $('modal-admin-label').style.display = admin ? '' : 'none';
-  $('modal-admin').style.display       = admin ? '' : 'none';
+  $('modal-ruling').textContent = sp.ruling;
+  $('modal-admin').textContent  = sp.admin;
+  $('modal-cc').textContent     = sp.courtcall;
+  $('modal-admin-label').style.display = sp.admin ? '' : 'none';
+  $('modal-admin').style.display       = sp.admin ? '' : 'none';
+  $('modal-cc-label').style.display    = sp.courtcall ? '' : 'none';
+  $('modal-cc').style.display          = sp.courtcall ? '' : 'none';
   $('overlay').classList.add('open');
 }
 function closeModal() { $('overlay').classList.remove('open'); }
 $('modal-close').addEventListener('click', closeModal);
 $('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-// ── Keyboard ──────────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
-
-// ── URL state ─────────────────────────────────────────────────────────────────
+// ─── URL state ───────────────────────────────────────────────────────────────
 function saveState() {
   const p = new URLSearchParams();
   if (searchEl.value) p.set('q', searchEl.value);
@@ -562,7 +1183,12 @@ function saveState() {
   if (dateTo.value)   p.set('to', dateTo.value);
   if (deptEl.value)   p.set('dept', deptEl.value);
   if (judgeEl.value)  p.set('judge', judgeEl.value);
+  if (mtypeEl.value)  p.set('mtype', mtypeEl.value);
+  if (msubEl.value)   p.set('msub', msubEl.value);
   if (currentPage)    p.set('page', currentPage);
+  if (customFilters.length) {
+    p.set('f', JSON.stringify(customFilters.map(f => ({ c: f.col, o: f.op, v: f.value }))));
+  }
   history.replaceState(null, '', '#' + p.toString());
 }
 function restoreState() {
@@ -573,20 +1199,35 @@ function restoreState() {
   if (p.get('to'))    dateTo.value   = p.get('to');
   if (p.get('dept'))  deptEl.value   = p.get('dept');
   if (p.get('judge')) judgeEl.value  = p.get('judge');
+  if (p.get('mtype')) mtypeEl.value  = p.get('mtype');
+  if (p.get('msub'))  msubEl.value   = p.get('msub');
   if (p.get('page'))  currentPage    = +p.get('page');
+  if (p.get('f')) {
+    try {
+      customFilters = JSON.parse(p.get('f')).map((f, i) => ({
+        id: nextFilterId++, col: f.c, op: f.o, value: f.v,
+      }));
+      renderFilterRows();
+      $('filter-builder').classList.add('open');
+      $('advanced-btn').classList.add('active');
+    } catch { /* ignore corrupted state */ }
+  }
+  // Trigger subtype refresh if mtype is set on restore
+  if (mtypeEl.value) mtypeEl.dispatchEvent(new Event('change'));
 }
 
-// ── Events ────────────────────────────────────────────────────────────────────
+// ─── Events ──────────────────────────────────────────────────────────────────
 let timer;
-const debounce = fn => { clearTimeout(timer); timer = setTimeout(fn, 350); };
-searchEl.addEventListener('input',  () => debounce(() => runQuery(0)));
+function debounceQuery() { clearTimeout(timer); timer = setTimeout(() => runQuery(0), 350); }
+searchEl.addEventListener('input',  () => debounceQuery());
 dateFrom.addEventListener('change', () => runQuery(0));
 dateTo.addEventListener('change',   () => runQuery(0));
 deptEl.addEventListener('change',   () => runQuery(0));
 judgeEl.addEventListener('change',  () => runQuery(0));
 
 function esc(s) {
-  return (s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return (s ?? '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 function csvCell(v) {
   const s = (v ?? '').toString().replace(/"/g, '""');

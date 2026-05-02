@@ -60,8 +60,26 @@ async function fetchScannedDates(s) {
     } catch (_) {}
   }
 
+  // Prefer coverage/dept<N>.json — it's the union of parquet court_dates and
+  // raw scrape files. The raw filenames alone miss the historical Excel
+  // imports (2014-2024) and trigger a "rescan everything since 2015" bug.
+  const branch = s.branch || 'master';
+  const covRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/coverage/dept${dept}.json?ref=${branch}`,
+    { headers: { Authorization: `Bearer ${s.token}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+  );
+  if (covRes.ok) {
+    try {
+      const meta = await covRes.json();
+      const json = JSON.parse(atob((meta.content || '').replace(/\n/g, '')));
+      if (Array.isArray(json.covered)) return json.covered.slice().sort();
+    } catch (_) { /* fall through to raw listing */ }
+  }
+
+  // Fallback: list raw/dept<N>/ directly. Used before coverage.json exists,
+  // and as a safety net if the file is malformed.
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/raw/dept${dept}?ref=${s.branch || 'master'}`,
+    `https://api.github.com/repos/${owner}/${repo}/contents/raw/dept${dept}?ref=${branch}`,
     { headers: { Authorization: `Bearer ${s.token}`, 'X-GitHub-Api-Version': '2022-11-28' } }
   );
   if (!res.ok) return null;

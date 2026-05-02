@@ -74,38 +74,36 @@ def extract_judge(ruling_text):
     return JUDGE_CODE_MAP.get(code)
 
 COLUMNS = ["department", "case_number", "case_title", "court_date", "hearing_time",
-           "calendar_matter", "judge", "ruling", "admin_notes", "row_hash"]
+           "calendar_matter", "judge", "ruling", "row_hash"]
 
-# Dept 302's standard contest paragraph is the most reliable boundary between
-# substantive ruling text and administrative boilerplate. Anything from this
-# sentence onward (the contest instructions, court-reporter notes, remote-
-# appearance notes, trailing judge tag) is admin. The match is anchored to
-# the start of the sentence and tolerant of minor casing/whitespace variants.
-_ADMIN_BOUNDARY_RE = re.compile(
-    r'\s*Any\s+part(?:y|ies)\s+who\s+contests?\s+a\s+tentative\s+ruling',
+# "(Part N of M)" suffix on a calendar_matter signals a split ruling whose
+# substantive text is broken across multiple records. We strip the suffix to
+# group the parts together for concatenation.
+_PART_SUFFIX_RE = re.compile(
+    r'\s*\(?\s*(?:part|pt)\.?\s+\d+\s+(?:of|/)\s+\d+\s*\)?\s*\.?\s*$',
+    re.IGNORECASE,
+)
+_PART_NUM_RE = re.compile(
+    r'\(?\s*(?:part|pt)\.?\s+(\d+)\s+(?:of|/)\s+(\d+)\s*\)?',
     re.IGNORECASE,
 )
 
 
-def split_admin_notes(ruling):
-    """Return (substantive_ruling, admin_notes). Both may be None."""
-    if not isinstance(ruling, str) or not ruling:
-        return None, None
-    m = _ADMIN_BOUNDARY_RE.search(ruling)
-    if not m:
-        return ruling, None
-    substantive = ruling[:m.start()].rstrip(' \t\r\n.,;:')
-    admin       = ruling[m.start():].strip()
-    return (substantive or None), (admin or None)
+def normalize_motion_for_split(cm):
+    if not cm:
+        return ""
+    return _PART_SUFFIX_RE.sub("", cm).strip().lower()
+
+
+def extract_part_num(text):
+    if not text:
+        return None
+    m = _PART_NUM_RE.search(text)
+    return int(m.group(1)) if m else None
 
 
 def make_hash(case_number, court_date, ruling):
-    # Hash on the *substantive* ruling so rows that differ only in the
-    # admin boilerplate (e.g. manually-curated rows where the boilerplate
-    # was culled vs. scraped rows where it's still attached) dedupe to the
-    # same record.
-    substantive, _ = split_admin_notes(ruling)
-    key = f"{case_number}|{court_date}|{substantive or ''}"
+    key = f"{case_number}|{court_date}|{ruling or ''}"
     return hashlib.sha1(key.encode()).hexdigest()
 
 
@@ -169,8 +167,6 @@ def load_xlsm_2014_2018(path, department="302"):
         hearing_time = None
         if isinstance(court_date, datetime) and (court_date.hour or court_date.minute):
             hearing_time = court_date.strftime("%H:%M")
-        ruling_text = str(ruling).strip() if ruling else None
-        substantive, admin = split_admin_notes(ruling_text)
         rows.append({
             "department":      department,
             "case_number":     str(case_number).strip() if case_number else None,
@@ -179,8 +175,7 @@ def load_xlsm_2014_2018(path, department="302"):
             "hearing_time":    hearing_time,
             "calendar_matter": str(calendar_matter).strip() if calendar_matter else None,
             "judge":           None,
-            "ruling":          substantive,
-            "admin_notes":     admin,
+            "ruling":          str(ruling).strip() if ruling else None,
         })
     return rows
 
@@ -193,8 +188,6 @@ def load_xlsx_2020_plus(path, department="302"):
         case_number, case_title, court_date, hearing_time, calendar_matter, judge, ruling = r[:7]
         if not any([case_number, ruling]):
             continue
-        ruling_text = str(ruling).strip() if ruling else None
-        substantive, admin = split_admin_notes(ruling_text)
         rows.append({
             "department":      department,
             "case_number":     str(case_number).strip() if case_number else None,
@@ -203,8 +196,7 @@ def load_xlsx_2020_plus(path, department="302"):
             "hearing_time":    normalize_time(hearing_time),
             "calendar_matter": str(calendar_matter).strip() if calendar_matter else None,
             "judge":           str(judge).strip() if judge else None,
-            "ruling":          substantive,
-            "admin_notes":     admin,
+            "ruling":          str(ruling).strip() if ruling else None,
         })
     return rows
 
@@ -229,7 +221,6 @@ def load_json(path):
         ruling_text    = rec.get("Rulings", "").strip() or None
         # Use explicit Judge field if present (scraped by extension), else derive from code
         judge = rec.get("Judge") or extract_judge(ruling_text)
-        substantive, admin = split_admin_notes(ruling_text)
         rows.append({
             "department":      department,
             "case_number":     rec.get("Case Number", "").strip() or None,
@@ -238,8 +229,7 @@ def load_json(path):
             "hearing_time":    normalize_time(court_date_raw),
             "calendar_matter": rec.get("Calendar Matter", "").strip() or None,
             "judge":           judge,
-            "ruling":          substantive,
-            "admin_notes":     admin,
+            "ruling":          ruling_text,
         })
     return rows
 
@@ -261,47 +251,144 @@ def detect_and_load(path):
 
 
 def to_df(rows):
-    df = pd.DataFrame(rows, columns=COLUMNS)
+    df = pd.DataFrame(rows, columns=[c for c in COLUMNS if c != "row_hash"])
+    return _add_hash(df)
+
+
+def _add_hash(df):
     df["row_hash"] = df.apply(
         lambda r: make_hash(r["case_number"] or "", r["court_date"] or "", r["ruling"] or ""),
         axis=1,
     )
-    return df
+    return df[COLUMNS]
+
+
+def consolidate_splits(df: pd.DataFrame) -> pd.DataFrame:
+    """Concatenate split rulings.
+
+    The SFTC site sometimes truncates a long ruling and emits the rest as a
+    second record marked "(Part 2 of 2)" (or with the suffix on
+    calendar_matter). We treat two rows as parts of the same ruling when they
+    share (case_number, court_date) and their calendar_matter is identical
+    after the part-suffix is stripped. Within each group we sort by part
+    number (taken from ruling text or calendar_matter) and join with two
+    newlines. The kept calendar_matter is the de-suffixed form.
+    """
+    if df.empty:
+        return df
+    df = df.copy()
+    df["_cm_norm"] = df["calendar_matter"].fillna("").apply(normalize_motion_for_split)
+    df["_part"] = df["ruling"].fillna("").apply(extract_part_num)
+    df["_part"] = df["_part"].fillna(df["calendar_matter"].fillna("").apply(extract_part_num))
+
+    # Stable order before grouping so single-part rows keep their original placement.
+    df = df.sort_values(["case_number", "court_date", "_cm_norm", "_part"],
+                        na_position="last", kind="stable").reset_index(drop=True)
+
+    keys = ["case_number", "court_date", "_cm_norm"]
+    sizes = df.groupby(keys, dropna=False).size()
+    multi_keys = set(sizes[sizes > 1].index)
+
+    if not multi_keys:
+        return df.drop(columns=["_cm_norm", "_part"])
+
+    def dedupe_by_containment(seq):
+        """Drop strings that are substrings of any longer string in `seq`.
+        Lets us re-ingest a date whose parquet entry is already consolidated:
+        the new individual parts are substrings of the existing merged form
+        and get dropped instead of re-concatenated on top of it."""
+        unique = sorted({s for s in seq if s}, key=len, reverse=True)
+        kept = []
+        for r in unique:
+            if not any(r in k and r != k for k in kept):
+                kept.append(r)
+        return kept
+
+    keep_indices = []
+    merged_rows = []
+    consolidated = 0
+    for key, idx in df.groupby(keys, dropna=False).groups.items():
+        idx = list(idx)
+        if key not in multi_keys:
+            keep_indices.extend(idx)
+            continue
+        sub = df.loc[idx]
+        raw_rulings = [r for r in sub["ruling"].fillna("").tolist() if r.strip()]
+        rulings = dedupe_by_containment(raw_rulings)
+        if len(rulings) <= 1:
+            # Already-merged or all-substring case — keep one row whose ruling
+            # is the longest (the post-consolidation form, if present).
+            longest_idx = max(idx, key=lambda i:
+                              len(df.at[i, "ruling"]) if isinstance(df.at[i, "ruling"], str) else 0)
+            keep_indices.append(longest_idx)
+            consolidated += len(idx) - 1
+            continue
+        merged_text = "\n\n".join(rulings)
+        first = sub.iloc[0].to_dict()
+        first["ruling"] = merged_text
+        cm = first.get("calendar_matter")
+        cm = cm if isinstance(cm, str) else ""
+        first["calendar_matter"] = _PART_SUFFIX_RE.sub("", cm).strip() or None
+        merged_rows.append(first)
+        consolidated += len(idx) - 1
+
+    base = df.loc[keep_indices].drop(columns=["_cm_norm", "_part"])
+    if merged_rows:
+        merged_df = pd.DataFrame(merged_rows).drop(columns=["_cm_norm", "_part"], errors="ignore")
+        out = pd.concat([base, merged_df], ignore_index=True)
+    else:
+        out = base
+    out = _add_hash(out.drop(columns=[c for c in out.columns if c == "row_hash"], errors="ignore"))
+    out = out.drop_duplicates(subset="row_hash", keep="first").reset_index(drop=True)
+    if consolidated:
+        print(f"  consolidated {consolidated} split-ruling row(s) into "
+              f"{len(merged_rows)} merged ruling(s)")
+    return out
 
 
 def migrate_existing(df: pd.DataFrame) -> pd.DataFrame:
     """Bring an existing parquet up to the current schema:
 
-      - Adds the `admin_notes` column if missing, splitting any boilerplate
-        out of the existing `ruling` text.
-      - Recomputes `row_hash` from the substantive ruling so old rows
-        dedupe against newly-ingested rows that had the boilerplate split.
+      - Drop the legacy `admin_notes` column, folding its text back into
+        `ruling` so the full ruling is in one place (browser splits at
+        display time now).
+      - Recompute `row_hash` from the full ruling.
+      - Concatenate split rulings ((Part N of M)) into one record.
     """
     if "department" not in df.columns:
         df.insert(0, "department", "302")
 
-    needs_split = "admin_notes" not in df.columns
-    if needs_split:
-        split = df["ruling"].apply(split_admin_notes)
-        df["ruling"]      = split.apply(lambda t: t[0])
-        df["admin_notes"] = split.apply(lambda t: t[1])
-        df["row_hash"]    = df.apply(
-            lambda r: make_hash(r["case_number"] or "", r["court_date"] or "", r["ruling"] or ""),
-            axis=1,
-        )
-        df = df.drop_duplicates(subset="row_hash", keep="first").reset_index(drop=True)
+    if "admin_notes" in df.columns:
+        # Reattach admin text to the ruling. Old splits always had the boundary
+        # phrase at the start of admin_notes, so a single-space join recovers
+        # the original substring.
+        def rejoin(row):
+            r = row.get("ruling")
+            a = row.get("admin_notes")
+            r = r if isinstance(r, str) else ""
+            a = a if isinstance(a, str) else ""
+            if r and a:
+                return f"{r.rstrip()} {a.lstrip()}"
+            return r or a or None
+        df["ruling"] = df.apply(rejoin, axis=1)
+        df = df.drop(columns=["admin_notes"])
 
-    # Make sure we have all expected columns in the canonical order.
+    df = consolidate_splits(df)
+
     for col in COLUMNS:
         if col not in df.columns:
             df[col] = None
+    df = _add_hash(df)
+    df = df.drop_duplicates(subset="row_hash", keep="first").reset_index(drop=True)
     return df[COLUMNS]
 
 
 def merge(existing: pd.DataFrame, new: pd.DataFrame):
     combined = pd.concat([existing, new], ignore_index=True)
-    before   = len(combined)
     combined = combined.drop_duplicates(subset="row_hash", keep="first")
+    # Re-run consolidation after merge — a newly-arrived part may pair with an
+    # existing row in the parquet.
+    combined = consolidate_splits(combined)
     after    = len(combined)
     inserted = after - len(existing)
     skipped  = len(new) - inserted
@@ -326,7 +413,6 @@ def save_sqlite(df: pd.DataFrame):
             calendar_matter TEXT,
             judge           TEXT,
             ruling          TEXT,
-            admin_notes     TEXT,
             row_hash        TEXT UNIQUE
         );
         CREATE INDEX IF NOT EXISTS idx_department ON tentatives(department);

@@ -400,23 +400,44 @@ async function commitAndAdvance() {
 }
 
 // Walk forward from `after` until we find a weekday that isn't a court holiday
-// AND doesn't already have a raw scrape file in raw/dept<N>/. The dept-dir
-// listing is already cached (60s) by getDeptDir, so this is one HTTP call at
-// most across a chain of hotkey presses.
+// AND isn't already covered (parquet rulings or raw scrape file). Coverage
+// merges parquet court_dates with raw filenames, which keeps the hotkey from
+// jumping back into 2017-2024 (the Excel-imported range with no raw files).
 async function nextUnscannedBusinessDay({ after, until, token, owner, repo, branch, department }) {
-  let scanned = new Set();
+  let covered = new Set();
   try {
-    const files = await getDeptDir(token, owner, repo, branch, department);
-    scanned = new Set(files.map(f => f.name?.slice(0, 10)).filter(Boolean));
+    const dates = await getCoverage(token, owner, repo, branch, department);
+    covered = new Set(dates);
   } catch {
-    // If the listing fails (network/auth), fall back to plain next-business-day.
+    // If coverage fails, fall back to raw listing.
+    try {
+      const files = await getDeptDir(token, owner, repo, branch, department);
+      covered = new Set(files.map(f => f.name?.slice(0, 10)).filter(Boolean));
+    } catch { /* fall through to plain next-business-day */ }
   }
   let d = nextBusinessDay(after);
   while (d <= until) {
-    if (!scanned.has(d)) return d;
+    if (!covered.has(d)) return d;
     d = nextBusinessDay(d);
   }
   return null;
+}
+
+const _covCache = new Map();
+async function getCoverage(token, owner, repo, branch, department) {
+  const key = `${department}|${branch}`;
+  const cached = _covCache.get(key);
+  if (cached && Date.now() - cached.time < 60_000) return cached.dates;
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/coverage/dept${department}.json?ref=${branch}`,
+    { headers: { Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+  );
+  if (!res.ok) throw new Error(`coverage fetch failed: ${res.status}`);
+  const meta = await res.json();
+  const json = JSON.parse(atob((meta.content || '').replace(/\n/g, '')));
+  const dates = Array.isArray(json.covered) ? json.covered : [];
+  _covCache.set(key, { dates, time: Date.now() });
+  return dates;
 }
 
 async function findSftcTab() {
