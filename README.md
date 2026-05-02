@@ -73,3 +73,13 @@ python update-readme.py
 _None — all weekdays in range are accounted for._
 
 </details>
+<details>
+<summary>**Department 501** &nbsp;·&nbsp; 20 rulings &nbsp;·&nbsp; Latest: 2026-05-01 &nbsp;·&nbsp; 0 gaps</summary>
+
+20 tentative rulings. Latest: 2026-05-01.
+
+### Gaps (0)
+
+_None — all weekdays in range are accounted for._
+
+</details>
