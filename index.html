@@ -110,6 +110,11 @@
       display: none;
     }
     .charts-panel.open { display: block; }
+    .charts-toolbar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.7rem; padding-bottom: 0.55rem;
+      border-bottom: 1px dashed #e1e6ee;
+    }
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
@@ -119,12 +124,60 @@
       background: #fafbfd; border: 1px solid #e1e6ee; border-radius: 5px;
       padding: 0.55rem 0.65rem 0.6rem; min-height: 240px;
       display: flex; flex-direction: column;
+      position: relative;
+    }
+    .chart-card.wide { grid-column: span 2; }
+    .chart-header {
+      display: flex; align-items: center; gap: 0.3rem;
+      margin: 0 0 0.4rem;
     }
     .chart-card h3 {
-      margin: 0 0 0.4rem; font-size: 0.78rem;
+      margin: 0; font-size: 0.78rem;
       font-weight: 600; color: #1a3a5c;
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+    .chart-card .panel-btn {
+      width: 22px; height: 22px;
+      border: none; background: transparent;
+      color: #aaa; cursor: pointer; font-size: 0.85rem;
+      padding: 0; line-height: 1; border-radius: 3px;
+    }
+    .chart-card .panel-btn:hover { background: #eef3fb; color: #1a3a5c; }
+    .chart-card .panel-btn.del:hover { background: #fff0f0; color: #c0392b; }
     .chart-wrap { flex: 1; position: relative; min-height: 200px; }
+    .panel-config {
+      display: none; padding: 0.5rem 0.5rem 0.6rem;
+      background: white; border: 1px solid #c8d8f0; border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    .panel-config.open { display: block; }
+    .panel-config-row {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      align-items: center; margin-bottom: 0.35rem;
+    }
+    .panel-config-row label {
+      font-size: 0.7rem; color: #555; min-width: 70px;
+    }
+    .panel-config-row select, .panel-config-row input {
+      padding: 0.18rem 0.35rem; font-size: 0.74rem;
+      border: 1px solid #c2ccd9; border-radius: 3px;
+      background: white; flex: 1; min-width: 0;
+    }
+    .panel-config-row .preset-pick {
+      width: 100%; font-weight: 500;
+    }
+    .stat-display {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 0.5rem;
+    }
+    .stat-display .stat-value {
+      font-size: 2.4rem; font-weight: 600; color: #1a3a5c;
+      line-height: 1.1;
+    }
+    .stat-display .stat-sub {
+      font-size: 0.78rem; color: #666; margin-top: 0.4rem;
+      text-align: center;
+    }
 
     /* ── Result bar / table ── */
     .result-bar {
@@ -164,6 +217,7 @@
     .col-time    { width: 65px; white-space: nowrap; }
     .col-case    { width: 110px; font-family: monospace; }
     .col-mtype   { width: 200px; }
+    .col-outcome { width: 130px; }
     .col-judge   { width: 165px; }
     .col-ruling  { color: #666; }
     .mtype-pill {
@@ -173,6 +227,17 @@
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .mtype-sub { font-size: 0.7rem; color: #888; margin-top: 1px; }
+    .outcome-pill {
+      display: inline-block; padding: 1px 6px;
+      border-radius: 10px; font-size: 0.72rem;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .outcome-granted     { background: #e6f4ea; border-color: #b2dfca; color: #1a5c2a; }
+    .outcome-denied      { background: #fdecea; border-color: #f5c6c6; color: #7a2020; }
+    .outcome-continued   { background: #fff8e1; border-color: #ffe082; color: #6b5300; }
+    .outcome-off         { background: #f0f0f0; border-color: #d0d0d0; color: #555; }
+    .outcome-other       { background: #eef3fb; border-color: #ccd6e6; color: #1a3a5c; }
     .no-data {
       text-align: center; padding: 2.5rem; color: #888; font-style: italic;
     }
@@ -320,24 +385,22 @@
 </div>
 
 <div class="charts-panel" id="charts-panel">
-  <div class="charts-grid">
-    <div class="chart-card">
-      <h3>Rulings per month</h3>
-      <div class="chart-wrap"><canvas id="chart-time"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Top motion types</h3>
-      <div class="chart-wrap"><canvas id="chart-mtype"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Top judges</h3>
-      <div class="chart-wrap"><canvas id="chart-judge"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Motion-type composition over time</h3>
-      <div class="chart-wrap"><canvas id="chart-stack"></canvas></div>
-    </div>
+  <div class="charts-toolbar">
+    <span class="chip">
+      <label for="chart-granularity">Time granularity</label>
+      <select id="chart-granularity">
+        <option value="auto" selected>Auto</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </span>
+    <span id="chart-granularity-effective" style="font-size:0.72rem;color:#888"></span>
+    <button class="btn" id="add-panel-btn" style="margin-left:auto">+ Add panel</button>
+    <button class="btn" id="reset-panels-btn" title="Restore default panel layout">↺ Reset</button>
   </div>
+  <div class="charts-grid" id="charts-grid"></div>
 </div>
 
 <div class="result-bar" id="result-bar" style="display:none">
@@ -354,14 +417,15 @@
   <table id="grid" style="display:none">
     <thead>
       <tr>
-        <th class="col-dept   sortable" data-col="department">Dept</th>
-        <th class="col-date   sortable sort-desc" data-col="court_date">Date</th>
+        <th class="col-dept    sortable" data-col="department">Dept</th>
+        <th class="col-date    sortable sort-desc" data-col="court_date">Date</th>
         <th class="col-time">Time</th>
-        <th class="col-case   sortable" data-col="case_number">Case #</th>
-        <th class="col-title  sortable" data-col="case_title">Case Title</th>
+        <th class="col-case    sortable" data-col="case_number">Case #</th>
+        <th class="col-title   sortable" data-col="case_title">Case Title</th>
         <th class="col-mtype">Motion Type</th>
+        <th class="col-outcome">Outcome</th>
         <th class="col-motion">Motion Caption</th>
-        <th class="col-judge  sortable" data-col="judge">Judge</th>
+        <th class="col-judge   sortable" data-col="judge">Judge</th>
         <th class="col-ruling">Ruling (excerpt)</th>
       </tr>
     </thead>
@@ -506,6 +570,63 @@ function classifyMotion(cm, dept) {
   return { type: 'Miscellaneous', subtype: null };
 }
 
+// ─── Outcome classification ──────────────────────────────────────────────────
+// Reads the substantive ruling text and returns one of a small fixed vocabulary.
+// Order matters: more specific patterns must come before more generic ones
+// (e.g. "granted in part" before "granted"; "off calendar" before "continued").
+// Sustained / overruled (demurrer-specific dispositions) live under one
+// "Granted / Sustained" umbrella so charts can group them together while still
+// preserving the distinction via subtype — same pattern as motion type/subtype.
+const OUTCOME_RULES = [
+  // Procedural / non-merits dispositions first.
+  [t => /\boff\s+calendar\b/i.test(t),                         'Off calendar', null],
+  [t => /\bwithdrawn\b|\btaken\s+off\s+calendar\b/i.test(t),   'Withdrawn',    null],
+  [t => /\bmoot(?:ed)?\b/i.test(t),                            'Moot',         null],
+  [t => /\btransferr?ed\b/i.test(t),                           'Transferred',  null],
+  [t => /\bcontinued\b|\bcontinuance\s+granted\b/i.test(t),    'Continued',    null],
+  [t => /\bunder\s+submission\b|\bsubmitted\s+for\s+(?:decision|ruling)\b/i.test(t),
+    'Under submission', null],
+  // Granted-family. "Granted in part" wins over plain granted; sustained
+  // (with/without leave) lives here too as a subtype.
+  [t => /\bgranted\b.{0,40}\bin\s+part\b/i.test(t),
+    'Granted / Sustained', 'Granted in part'],
+  [t => /\bsustained\b.{0,40}\bwith\s+leave\s+to\s+amend\b/i.test(t),
+    'Granted / Sustained', 'Sustained with leave to amend'],
+  [t => /\bsustained\b.{0,40}\bwithout\s+leave\b/i.test(t),
+    'Granted / Sustained', 'Sustained without leave'],
+  [t => /\bsustained\b/i.test(t),                              'Granted / Sustained', 'Sustained'],
+  [t => /\bgranted\b/i.test(t),                                'Granted / Sustained', 'Granted'],
+  // Denied-family.
+  [t => /\bdenied\b.{0,40}\bin\s+part\b/i.test(t),             'Denied', 'Denied in part'],
+  [t => /\bdenied\s+without\s+prejudice\b/i.test(t),           'Denied', 'Denied without prejudice'],
+  [t => /\bdenied\b/i.test(t),                                 'Denied', null],
+  [t => /\boverruled\b/i.test(t),                              'Denied', 'Overruled'],
+];
+
+function classifyOutcome(rulingText) {
+  if (!rulingText) return { outcome: 'Unknown', subtype: null };
+  // Look at the substantive ruling only — boilerplate "Any party who contests…"
+  // never matches our terms so this is mostly defensive.
+  const text = rulingText;
+  for (const [test, outcome, subtype] of OUTCOME_RULES) {
+    if (test(text)) return { outcome, subtype };
+  }
+  return { outcome: 'Other', subtype: null };
+}
+
+// One outcome per (case_number, court_date, calendar_matter) — keyed so we
+// don't re-classify on every render.
+const OUTCOME_CACHE = new Map();
+function lookupOutcome(rulingText) {
+  if (!rulingText) return { outcome: 'Unknown', subtype: null };
+  // Cache key: hash by ruling text length + first/last 60 chars (full text
+  // can be 5KB+; this is enough collision resistance for our 50K rows).
+  const key = `${rulingText.length}|${rulingText.slice(0, 60)}|${rulingText.slice(-60)}`;
+  let cls = OUTCOME_CACHE.get(key);
+  if (!cls) { cls = classifyOutcome(rulingText); OUTCOME_CACHE.set(key, cls); }
+  return cls;
+}
+
 // Department → admin-block boundary regex. The substantive ruling ends just
 // before this phrase; everything from there onward is contestation /
 // remote-appearance / boilerplate. Add new depts as their phrasing is
@@ -586,6 +707,10 @@ const FILTER_COLS = [
   ['motion_subtype',  'Motion Subtype',   ['is', 'is not', 'contains']],
   ['judge',           'Judge',            ['is', 'is not', 'contains']],
   ['department',      'Department',       ['is', 'is not']],
+  // Outcome filtering happens in JS post-fetch (the classifier reads ruling
+  // text), see runQuery + outcomeFilterMatches.
+  ['outcome',         'Outcome',          ['is', 'is not']],
+  ['outcome_subtype', 'Outcome subtype',  ['is', 'is not', 'contains']],
   ['ruling',          'Ruling text',      ['contains', 'does not contain']],
   ['admin_notes',     'Admin notes',      ['contains', 'does not contain']],
   ['courtcall',       'Remote / CourtCall info', ['contains', 'does not contain']],
@@ -785,6 +910,10 @@ function buildWhere() {
 
 function filterToSql(f) {
   const v = (f.value ?? '').trim();
+  // Outcome filters can't be expressed in plain SQL (the classifier reads
+  // ruling text). They're applied after the SQL pass — buildWhere returns
+  // them via a sentinel so runQuery can post-filter.
+  if (f.col === 'outcome' || f.col === 'outcome_subtype') return null;
   // Some columns are derived (browser-side); for those we resolve via the
   // calendar_matter cache so the WHERE clause stays SQL-shaped.
   if (f.col === 'motion_type' || f.col === 'motion_subtype') {
@@ -849,26 +978,50 @@ async function runQuery(page = 0) {
   if (!conn) return;
   currentPage = page;
   const where = buildWhere(), offset = page * PAGE_SIZE;
+  const oFilters = outcomeFilters();
   $('qspinner').classList.add('on');
   saveState();
   try {
-    const [cntR, rowsR] = await Promise.all([
-      conn.query(`SELECT COUNT(*) n FROM 'data.parquet' WHERE ${where}`),
-      conn.query(`
-        SELECT department, case_number, case_title, court_date, hearing_time,
-               calendar_matter, judge, ruling
-        FROM 'data.parquet' WHERE ${where}
-        ORDER BY ${sortCol} ${sortDir}, case_number
-        LIMIT ${PAGE_SIZE} OFFSET ${offset}
-      `),
-    ]);
-    lastCount = Number(cntR.toArray()[0].n);
-    rows = rowsR.toArray();
-    renderTable(rows);
-    renderPager(lastCount, page);
-    $('result-info').textContent =
-      `${lastCount.toLocaleString()} row${lastCount !== 1 ? 's' : ''}` +
-      (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+    if (oFilters.length) {
+      // Outcome filters live outside SQL. Pull a wider page, classify in JS,
+      // then slice. Counting accurately requires scanning the full filtered
+      // set — we do it once per query which is ~O(50K rules-evals).
+      const [cntR, allR] = await Promise.all([
+        conn.query(`SELECT COUNT(*) n FROM 'data.parquet' WHERE ${where}`),
+        conn.query(`
+          SELECT department, case_number, case_title, court_date, hearing_time,
+                 calendar_matter, judge, ruling
+          FROM 'data.parquet' WHERE ${where}
+          ORDER BY ${sortCol} ${sortDir}, case_number
+        `),
+      ]);
+      const allRows = allR.toArray().filter(outcomeFilterMatches);
+      lastCount = allRows.length;
+      rows = allRows.slice(offset, offset + PAGE_SIZE);
+      renderTable(rows);
+      renderPager(lastCount, page);
+      $('result-info').textContent =
+        `${lastCount.toLocaleString()} row${lastCount !== 1 ? 's' : ''}` +
+        ` (outcome-filtered from ${Number(cntR.toArray()[0].n).toLocaleString()})`;
+    } else {
+      const [cntR, rowsR] = await Promise.all([
+        conn.query(`SELECT COUNT(*) n FROM 'data.parquet' WHERE ${where}`),
+        conn.query(`
+          SELECT department, case_number, case_title, court_date, hearing_time,
+                 calendar_matter, judge, ruling
+          FROM 'data.parquet' WHERE ${where}
+          ORDER BY ${sortCol} ${sortDir}, case_number
+          LIMIT ${PAGE_SIZE} OFFSET ${offset}
+        `),
+      ]);
+      lastCount = Number(cntR.toArray()[0].n);
+      rows = rowsR.toArray();
+      renderTable(rows);
+      renderPager(lastCount, page);
+      $('result-info').textContent =
+        `${lastCount.toLocaleString()} row${lastCount !== 1 ? 's' : ''}` +
+        (lastCount !== totalRows ? ` of ${totalRows.toLocaleString()} total` : '');
+    }
 
     if ($('charts-panel').classList.contains('open')) {
       refreshCharts(where);
@@ -877,15 +1030,26 @@ async function runQuery(page = 0) {
 }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
+function outcomeClass(outcome) {
+  if (!outcome) return 'outcome-other';
+  if (outcome.startsWith('Granted'))  return 'outcome-granted';
+  if (outcome === 'Denied')           return 'outcome-denied';
+  if (outcome === 'Continued')        return 'outcome-continued';
+  if (outcome === 'Off calendar' || outcome === 'Withdrawn') return 'outcome-off';
+  return 'outcome-other';
+}
+
 function renderTable(data) {
   const tbody = $('tbody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No rulings match your filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="no-data">No rulings match your filters.</td></tr>';
     return;
   }
   tbody.innerHTML = data.map((r, i) => {
     const m = lookupMotion(r.department, r.calendar_matter);
     const sub = m.subtype ? `<div class="mtype-sub">${esc(m.subtype)}</div>` : '';
+    const o = lookupOutcome(splitRuling(r.ruling, r.department).ruling);
+    const oSub = o.subtype ? `<div class="mtype-sub">${esc(o.subtype)}</div>` : '';
     return `<tr data-idx="${i}">
       <td class="col-dept">${esc(r.department)}</td>
       <td class="col-date">${r.court_date ?? ''}</td>
@@ -893,6 +1057,7 @@ function renderTable(data) {
       <td class="col-case">${esc(r.case_number)}</td>
       <td class="col-title">${esc(r.case_title)}</td>
       <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
+      <td class="col-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome)}</span>${oSub}</td>
       <td class="col-motion">${esc(r.calendar_matter)}</td>
       <td class="col-judge">${esc(r.judge)}</td>
       <td class="col-ruling">${esc((splitRuling(r.ruling, r.department).ruling).slice(0, 140))}</td>
@@ -928,143 +1093,524 @@ $('page-size').addEventListener('change', () => {
 });
 
 // ─── Charts (Chart.js) ───────────────────────────────────────────────────────
+// Panels are user-configurable: pick a preset (e.g. "Top motion types",
+// "% Granted by motion type", "Outcome breakdown") and the panel renders
+// itself. Layout persists in localStorage. The four legacy panels (time
+// series, top motion types, top judges, motion composition) are the default
+// preset stack.
+
 const charts = {};
-function makeOrUpdate(id, config) {
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+function makeChart(id, config) {
   const ctx = $(id);
   if (!ctx) return;
-  if (charts[id]) charts[id].destroy();
+  destroyChart(id);
   charts[id] = new Chart(ctx, config);
 }
 
-async function refreshCharts(where) {
-  const [byMonth, byMtype, byJudge, byMonthMtype] = await Promise.all([
-    conn.query(`SELECT strftime(CAST(court_date AS DATE), '%Y-%m') m, COUNT(*) n
-                FROM 'data.parquet' WHERE ${where}
-                GROUP BY m ORDER BY m`),
-    conn.query(`SELECT department, calendar_matter, COUNT(*) n
-                FROM 'data.parquet' WHERE ${where}
-                GROUP BY department, calendar_matter`),
-    conn.query(`SELECT COALESCE(judge, '(unspecified)') j, COUNT(*) n
-                FROM 'data.parquet' WHERE ${where}
-                GROUP BY j ORDER BY n DESC LIMIT 12`),
-    conn.query(`SELECT strftime(CAST(court_date AS DATE), '%Y') y, department, calendar_matter, COUNT(*) n
-                FROM 'data.parquet' WHERE ${where}
-                GROUP BY y, department, calendar_matter ORDER BY y`),
-  ]);
+const PALETTE = ['#1a3a5c', '#2e6da4', '#5a8fc8', '#2a7a4a', '#7aa6d2',
+                 '#b8860b', '#a3543c', '#6f4e7c', '#4f8d76', '#a87a4a',
+                 '#8a7090', '#5588aa'];
 
-  // Time series
-  const tm = byMonth.toArray();
-  makeOrUpdate('chart-time', {
-    type: 'line',
-    data: {
-      labels:   tm.map(r => r.m),
-      datasets: [{
-        label: 'Rulings', data: tm.map(r => Number(r.n)),
-        borderColor: '#1a3a5c', backgroundColor: 'rgba(26,58,92,0.15)',
-        tension: 0.25, pointRadius: 0, fill: true, borderWidth: 1.4,
-      }],
-    },
-    options: chartOpts({ legend: false, x: { type: 'category', ticks: { maxTicksLimit: 12 } } }),
-  });
-
-  // Motion-type bar (top 12)
-  const mtCounts = new Map();
-  for (const r of byMtype.toArray()) {
-    const t = lookupMotion(r.department, r.calendar_matter).type;
-    mtCounts.set(t, (mtCounts.get(t) || 0) + Number(r.n));
-  }
-  const mt = [...mtCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
-  makeOrUpdate('chart-mtype', {
-    type: 'bar',
-    data: {
-      labels:   mt.map(r => r[0]),
-      datasets: [{
-        label: 'Rulings', data: mt.map(r => r[1]),
-        backgroundColor: '#2e6da4', borderRadius: 3,
-      }],
-    },
-    options: chartOpts({
-      indexAxis: 'y',
-      legend: false,
-      x: { beginAtZero: true },
-      y: { ticks: { font: { size: 10 } } },
-    }),
-  });
-
-  // Judges bar
-  const jr = byJudge.toArray();
-  makeOrUpdate('chart-judge', {
-    type: 'bar',
-    data: {
-      labels:   jr.map(r => r.j),
-      datasets: [{
-        label: 'Rulings', data: jr.map(r => Number(r.n)),
-        backgroundColor: '#2a7a4a', borderRadius: 3,
-      }],
-    },
-    options: chartOpts({
-      indexAxis: 'y',
-      legend: false,
-      x: { beginAtZero: true },
-      y: { ticks: { font: { size: 10 } } },
-    }),
-  });
-
-  // Stacked area: top 6 motion types per year
-  const yMap = new Map(); // year -> Map(type -> count)
-  for (const r of byMonthMtype.toArray()) {
-    const t = lookupMotion(r.department, r.calendar_matter).type;
-    if (!yMap.has(r.y)) yMap.set(r.y, new Map());
-    const inner = yMap.get(r.y);
-    inner.set(t, (inner.get(t) || 0) + Number(r.n));
-  }
-  const years = [...yMap.keys()].sort();
-  const totals = new Map();
-  for (const inner of yMap.values()) for (const [t, n] of inner) totals.set(t, (totals.get(t) || 0) + n);
-  const top = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(r => r[0]);
-  const palette = ['#1a3a5c', '#2e6da4', '#5a8fc8', '#2a7a4a', '#7aa6d2', '#b8860b'];
-  const stackData = top.map((t, i) => ({
-    label: t,
-    data: years.map(y => yMap.get(y).get(t) || 0),
-    backgroundColor: palette[i],
-    borderColor: palette[i],
-    fill: true, tension: 0.25, pointRadius: 0, borderWidth: 0,
-  }));
-  makeOrUpdate('chart-stack', {
-    type: 'line',
-    data: { labels: years, datasets: stackData },
-    options: chartOpts({
-      x: { type: 'category' },
-      y: { stacked: true, beginAtZero: true },
-      stacked: true,
-    }),
-  });
+// Time-bucket helper. "Auto" picks the granularity from the date span; if
+// the range is inside a single calendar month, force daily.
+function pickGranularity(mode, from, to) {
+  if (mode && mode !== 'auto') return mode;
+  if (!from || !to) return 'monthly';
+  const a = new Date(from + 'T12:00:00');
+  const b = new Date(to   + 'T12:00:00');
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) return 'daily';
+  const days = Math.round((b - a) / 86400000);
+  if (days <= 31)         return 'daily';
+  if (days <= 6 * 30)     return 'weekly';
+  if (days <= 5 * 365)    return 'monthly';
+  return 'yearly';
 }
 
+// SQL expression that buckets court_date at the chosen granularity. Always
+// returns VARCHAR so the JS side can treat keys as strings uniformly.
+function dateBucketSql(g) {
+  if (g === 'daily')   return "strftime(CAST(court_date AS DATE), '%Y-%m-%d')";
+  if (g === 'weekly')  return "strftime(date_trunc('week', CAST(court_date AS DATE)), '%Y-%m-%d')";
+  if (g === 'monthly') return "strftime(CAST(court_date AS DATE), '%Y-%m')";
+  return "strftime(CAST(court_date AS DATE), '%Y')";
+}
+
+function granularityLabel(g) {
+  return ({ daily: 'day', weekly: 'week (ISO, Mon-start)', monthly: 'month', yearly: 'year' })[g] || g;
+}
+
+// Shared chart options. Horizontal bars get autoSkip:false so every bar
+// label is visible (the previous default silently dropped half of them when
+// the chart shrank, leaving "interstitial" unlabeled bars).
 function chartOpts(extra = {}) {
+  const horizontal = extra.indexAxis === 'y';
+  const labelTrunc = (s) => {
+    s = String(s ?? '');
+    return s.length > 32 ? s.slice(0, 30) + '…' : s;
+  };
   return {
     responsive: true, maintainAspectRatio: false,
     plugins: {
       legend: { display: extra.legend !== false, position: 'bottom',
-                labels: { font: { size: 10 } } },
-      tooltip: { mode: 'index', intersect: false },
+                labels: { font: { size: 10 }, boxWidth: 10 } },
+      tooltip: {
+        mode: 'index', intersect: false,
+        callbacks: extra.tooltip?.callbacks,
+      },
     },
     interaction: { mode: 'nearest', intersect: false },
     scales: {
-      x: { grid: { color: '#eef0f4' }, ticks: { font: { size: 10 } }, ...(extra.x || {}) },
-      y: { grid: { color: '#eef0f4' }, ticks: { font: { size: 10 } }, beginAtZero: true,
-           stacked: !!extra.stacked, ...(extra.y || {}) },
+      x: {
+        grid: { color: '#eef0f4' },
+        ticks: { font: { size: 10 }, ...(horizontal ? {} : { autoSkip: true, maxRotation: 0 }), ...(extra.xTicks || {}) },
+        ...(extra.x || {}),
+      },
+      y: {
+        grid: { color: '#eef0f4' },
+        beginAtZero: true,
+        stacked: !!extra.stacked,
+        ticks: {
+          font: { size: 10 },
+          ...(horizontal
+            ? { autoSkip: false, callback: function(v) { return labelTrunc(this.getLabelForValue(v)); } }
+            : {}),
+          ...(extra.yTicks || {}),
+        },
+        ...(extra.y || {}),
+      },
     },
     indexAxis: extra.indexAxis || 'x',
   };
 }
+
+// ─── Panel presets ────────────────────────────────────────────────────────────
+// Each preset is a self-contained panel renderer: takes the current SQL
+// WHERE clause + global granularity + per-panel config, returns nothing
+// (writes directly to its canvas via makeChart).
+
+const PANEL_PRESETS = {
+  'time-series': {
+    label: 'Rulings over time',
+    wide: false,
+    defaults: {},
+    title:    (cfg, g) => `Rulings per ${granularityLabel(g)}`,
+    render:   async (panel, where, g) => {
+      const bucket = dateBucketSql(g);
+      const r = (await conn.query(
+        `SELECT ${bucket} m, COUNT(*) n FROM 'data.parquet' WHERE ${where}
+         GROUP BY m ORDER BY m`)).toArray();
+      makeChart(panel.canvasId, {
+        type: 'line',
+        data: { labels: r.map(x => x.m), datasets: [{
+          label: 'Rulings', data: r.map(x => Number(x.n)),
+          borderColor: '#1a3a5c', backgroundColor: 'rgba(26,58,92,0.15)',
+          tension: 0.25, pointRadius: 0, fill: true, borderWidth: 1.4,
+        }] },
+        options: chartOpts({ legend: false, x: { type: 'category', ticks: { maxTicksLimit: 14 } } }),
+      });
+    },
+  },
+
+  'top-motion-types': {
+    label: 'Top motion types (bar)',
+    wide: false,
+    defaults: { topN: 12 },
+    title:    (cfg) => `Top ${cfg.topN || 12} motion types`,
+    configFields: [['topN', 'Top N', 'number']],
+    render:   async (panel, where) => {
+      const rows = (await conn.query(
+        `SELECT department, calendar_matter, COUNT(*) n FROM 'data.parquet'
+         WHERE ${where} GROUP BY department, calendar_matter`)).toArray();
+      const counts = new Map();
+      for (const r of rows) {
+        const t = lookupMotion(r.department, r.calendar_matter).type;
+        counts.set(t, (counts.get(t) || 0) + Number(r.n));
+      }
+      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])
+        .slice(0, panel.cfg.topN || 12);
+      makeChart(panel.canvasId, {
+        type: 'bar',
+        data: { labels: top.map(r => r[0]), datasets: [{
+          label: 'Rulings', data: top.map(r => r[1]),
+          backgroundColor: '#2e6da4', borderRadius: 3,
+        }] },
+        options: chartOpts({ indexAxis: 'y', legend: false, x: { beginAtZero: true } }),
+      });
+    },
+  },
+
+  'top-judges': {
+    label: 'Top judges (bar)',
+    wide: false,
+    defaults: { topN: 12 },
+    title:    (cfg) => `Top ${cfg.topN || 12} judges`,
+    configFields: [['topN', 'Top N', 'number']],
+    render:   async (panel, where) => {
+      const r = (await conn.query(
+        `SELECT COALESCE(judge, '(unspecified)') j, COUNT(*) n FROM 'data.parquet'
+         WHERE ${where} GROUP BY j ORDER BY n DESC LIMIT ${+panel.cfg.topN || 12}`)).toArray();
+      makeChart(panel.canvasId, {
+        type: 'bar',
+        data: { labels: r.map(x => x.j), datasets: [{
+          label: 'Rulings', data: r.map(x => Number(x.n)),
+          backgroundColor: '#2a7a4a', borderRadius: 3,
+        }] },
+        options: chartOpts({ indexAxis: 'y', legend: false, x: { beginAtZero: true } }),
+      });
+    },
+  },
+
+  'motion-type-stack': {
+    label: 'Motion-type composition over time (stacked)',
+    wide: true,
+    defaults: { topN: 6 },
+    title:    (cfg, g) => `Top ${cfg.topN || 6} motion types per ${granularityLabel(g)}`,
+    configFields: [['topN', 'Top N', 'number']],
+    render:   async (panel, where, g) => {
+      const bucket = dateBucketSql(g);
+      const rows = (await conn.query(
+        `SELECT ${bucket} b, department, calendar_matter, COUNT(*) n
+         FROM 'data.parquet' WHERE ${where}
+         GROUP BY b, department, calendar_matter ORDER BY b`)).toArray();
+      const buckets = []; const seen = new Set();
+      const map = new Map(); // bucket -> Map(type -> count)
+      for (const r of rows) {
+        if (!seen.has(r.b)) { buckets.push(r.b); seen.add(r.b); }
+        const t = lookupMotion(r.department, r.calendar_matter).type;
+        if (!map.has(r.b)) map.set(r.b, new Map());
+        const m = map.get(r.b); m.set(t, (m.get(t) || 0) + Number(r.n));
+      }
+      const totals = new Map();
+      for (const m of map.values()) for (const [t, n] of m) totals.set(t, (totals.get(t) || 0) + n);
+      const top = [...totals.entries()].sort((a, b) => b[1] - a[1])
+        .slice(0, panel.cfg.topN || 6).map(r => r[0]);
+      const datasets = top.map((t, i) => ({
+        label: t,
+        data: buckets.map(b => map.get(b)?.get(t) || 0),
+        backgroundColor: PALETTE[i % PALETTE.length],
+        borderColor: PALETTE[i % PALETTE.length],
+        fill: true, tension: 0.25, pointRadius: 0, borderWidth: 0,
+      }));
+      makeChart(panel.canvasId, {
+        type: 'line',
+        data: { labels: buckets, datasets },
+        options: chartOpts({ x: { type: 'category', ticks: { maxTicksLimit: 16 } },
+                             y: { stacked: true }, stacked: true }),
+      });
+    },
+  },
+
+  'outcome-bar': {
+    label: 'Outcome breakdown (bar)',
+    wide: false,
+    defaults: {},
+    title:    () => 'Outcome breakdown',
+    render:   async (panel, where) => {
+      const rows = (await conn.query(
+        `SELECT department, ruling FROM 'data.parquet' WHERE ${where}
+         AND ruling IS NOT NULL`)).toArray();
+      const counts = new Map();
+      for (const r of rows) {
+        const o = lookupOutcome(r.ruling).outcome;
+        counts.set(o, (counts.get(o) || 0) + 1);
+      }
+      const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+      makeChart(panel.canvasId, {
+        type: 'bar',
+        data: { labels: sorted.map(r => r[0]), datasets: [{
+          label: 'Rulings',
+          data: sorted.map(r => r[1]),
+          backgroundColor: sorted.map((_, i) => PALETTE[i % PALETTE.length]),
+          borderRadius: 3,
+        }] },
+        options: chartOpts({ indexAxis: 'y', legend: false, x: { beginAtZero: true } }),
+      });
+    },
+  },
+
+  'outcome-pct-by-type': {
+    label: '% of one outcome by motion type',
+    wide: false,
+    defaults: { outcome: 'Granted / Sustained', topN: 12 },
+    title:    (cfg) => `% ${cfg.outcome || 'Granted / Sustained'} by motion type`,
+    configFields: [
+      ['outcome', 'Outcome', 'outcome'],
+      ['topN',    'Top N',   'number'],
+    ],
+    render:   async (panel, where) => {
+      const target = panel.cfg.outcome || 'Granted / Sustained';
+      const rows = (await conn.query(
+        `SELECT department, calendar_matter, ruling FROM 'data.parquet'
+         WHERE ${where} AND ruling IS NOT NULL`)).toArray();
+      const total = new Map(), match = new Map();
+      for (const r of rows) {
+        const t = lookupMotion(r.department, r.calendar_matter).type;
+        total.set(t, (total.get(t) || 0) + 1);
+        if (lookupOutcome(r.ruling).outcome === target) {
+          match.set(t, (match.get(t) || 0) + 1);
+        }
+      }
+      // Order by total volume so the user sees the high-frequency motions
+      // first; min N=20 to avoid noisy 100%-from-1-row entries dominating.
+      const ranked = [...total.entries()]
+        .filter(([, n]) => n >= 20)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, panel.cfg.topN || 12)
+        .map(([t, n]) => [t, (match.get(t) || 0) / n * 100, match.get(t) || 0, n]);
+      makeChart(panel.canvasId, {
+        type: 'bar',
+        data: { labels: ranked.map(r => r[0]), datasets: [{
+          label: `% ${target}`,
+          data: ranked.map(r => r[1]),
+          backgroundColor: '#2e6da4', borderRadius: 3,
+        }] },
+        options: chartOpts({
+          indexAxis: 'y', legend: false,
+          x: { beginAtZero: true, max: 100,
+               ticks: { callback: v => v + '%' } },
+          tooltip: { callbacks: {
+            label: ctx => {
+              const [, , m, t] = ranked[ctx.dataIndex];
+              return ` ${ctx.parsed.x.toFixed(1)}%  (${m} of ${t})`;
+            },
+          } },
+        }),
+      });
+    },
+  },
+
+  'outcome-stack-by-type': {
+    label: 'Outcome composition by motion type (stacked)',
+    wide: true,
+    defaults: { topN: 10 },
+    title:    (cfg) => `Outcome composition — top ${cfg.topN || 10} motion types`,
+    configFields: [['topN', 'Top N motion types', 'number']],
+    render:   async (panel, where) => {
+      const rows = (await conn.query(
+        `SELECT department, calendar_matter, ruling FROM 'data.parquet'
+         WHERE ${where} AND ruling IS NOT NULL`)).toArray();
+      const byType = new Map();      // type -> Map(outcome -> count)
+      const typeTotals = new Map();
+      for (const r of rows) {
+        const t = lookupMotion(r.department, r.calendar_matter).type;
+        const o = lookupOutcome(r.ruling).outcome;
+        if (!byType.has(t)) byType.set(t, new Map());
+        const m = byType.get(t);
+        m.set(o, (m.get(o) || 0) + 1);
+        typeTotals.set(t, (typeTotals.get(t) || 0) + 1);
+      }
+      const types = [...typeTotals.entries()].sort((a, b) => b[1] - a[1])
+        .slice(0, panel.cfg.topN || 10).map(r => r[0]);
+      const allOutcomes = new Set();
+      for (const m of byType.values()) for (const o of m.keys()) allOutcomes.add(o);
+      const outcomes = [...allOutcomes];
+      const datasets = outcomes.map((o, i) => ({
+        label: o,
+        data: types.map(t => byType.get(t)?.get(o) || 0),
+        backgroundColor: PALETTE[i % PALETTE.length],
+      }));
+      makeChart(panel.canvasId, {
+        type: 'bar',
+        data: { labels: types, datasets },
+        options: chartOpts({
+          indexAxis: 'y',
+          x: { stacked: true, beginAtZero: true },
+          y: { stacked: true },
+          stacked: true,
+        }),
+      });
+    },
+  },
+
+  'count-stat': {
+    label: 'Single number (matching rulings)',
+    wide: false,
+    defaults: {},
+    title:    () => 'Total rulings (filtered)',
+    render:   async (panel, where) => {
+      const r = (await conn.query(
+        `SELECT COUNT(*) n FROM 'data.parquet' WHERE ${where}`)).toArray()[0];
+      const wrap = $(panel.canvasId)?.parentElement;
+      if (!wrap) return;
+      destroyChart(panel.canvasId);
+      wrap.innerHTML =
+        `<div class="stat-display">` +
+          `<div class="stat-value">${Number(r.n).toLocaleString()}</div>` +
+          `<div class="stat-sub">rulings match the current filters</div>` +
+        `</div>`;
+    },
+  },
+};
+
+const DEFAULT_PANELS = [
+  { id: 'p1', preset: 'time-series',         cfg: {} },
+  { id: 'p2', preset: 'top-motion-types',    cfg: { topN: 12 } },
+  { id: 'p3', preset: 'top-judges',          cfg: { topN: 12 } },
+  { id: 'p4', preset: 'motion-type-stack',   cfg: { topN: 6 } },
+  { id: 'p5', preset: 'outcome-bar',         cfg: {} },
+  { id: 'p6', preset: 'outcome-pct-by-type', cfg: { outcome: 'Granted / Sustained', topN: 12 } },
+];
+
+// Panel state. Loaded from localStorage on first refresh; reset button
+// restores DEFAULT_PANELS.
+const PANEL_STORAGE_KEY = 'sfsc-panels-v1';
+let panels = loadPanels();
+let panelIdSeq = 1;
+function nextPanelId() { return 'p' + (++panelIdSeq); }
+
+function loadPanels() {
+  try {
+    const raw = localStorage.getItem(PANEL_STORAGE_KEY);
+    if (!raw) return structuredClone(DEFAULT_PANELS);
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || !list.length) return structuredClone(DEFAULT_PANELS);
+    return list.map(p => ({
+      id: p.id || nextPanelId(),
+      preset: PANEL_PRESETS[p.preset] ? p.preset : 'time-series',
+      cfg: p.cfg || {},
+    }));
+  } catch { return structuredClone(DEFAULT_PANELS); }
+}
+function savePanels() {
+  try { localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panels)); } catch {}
+}
+
+// Render the entire panel grid. Each panel becomes a chart-card with a
+// header (title + edit/delete buttons) and a canvas. We re-render the cards
+// only on layout changes; data refresh just re-runs the preset render fns.
+function renderPanelGrid() {
+  const grid = $('charts-grid');
+  grid.innerHTML = '';
+  for (const p of panels) {
+    const preset = PANEL_PRESETS[p.preset];
+    if (!preset) continue;
+    p.canvasId = 'canvas-' + p.id;
+    const card = document.createElement('div');
+    card.className = 'chart-card' + (preset.wide ? ' wide' : '');
+    card.innerHTML =
+      `<div class="chart-header">` +
+        `<h3 id="title-${p.id}"></h3>` +
+        `<button class="panel-btn edit" title="Edit panel">⚙</button>` +
+        `<button class="panel-btn del"  title="Remove panel">×</button>` +
+      `</div>` +
+      `<div class="panel-config" id="config-${p.id}"></div>` +
+      `<div class="chart-wrap"><canvas id="${p.canvasId}"></canvas></div>`;
+    grid.appendChild(card);
+    card.querySelector('.edit').addEventListener('click', () => togglePanelConfig(p));
+    card.querySelector('.del').addEventListener('click', () => removePanel(p.id));
+    renderPanelConfig(p);
+  }
+}
+
+function renderPanelConfig(p) {
+  const wrap = $('config-' + p.id);
+  if (!wrap) return;
+  const presetKeys = Object.keys(PANEL_PRESETS);
+  let html = `<div class="panel-config-row">` +
+    `<label>Preset</label>` +
+    `<select class="preset-pick">` +
+    presetKeys.map(k => `<option value="${k}"${k === p.preset ? ' selected' : ''}>${esc(PANEL_PRESETS[k].label)}</option>`).join('') +
+    `</select></div>`;
+  const fields = PANEL_PRESETS[p.preset].configFields || [];
+  for (const [key, label, kind] of fields) {
+    if (kind === 'number') {
+      html += `<div class="panel-config-row"><label>${esc(label)}</label>` +
+        `<input type="number" min="1" data-cfg="${key}" value="${esc(p.cfg[key] ?? PANEL_PRESETS[p.preset].defaults[key] ?? 12)}"></div>`;
+    } else if (kind === 'outcome') {
+      const opts = ['Granted / Sustained', 'Denied', 'Continued', 'Off calendar',
+                    'Withdrawn', 'Moot', 'Transferred', 'Under submission', 'Other'];
+      html += `<div class="panel-config-row"><label>${esc(label)}</label>` +
+        `<select data-cfg="${key}">` +
+        opts.map(o => `<option value="${esc(o)}"${o === p.cfg[key] ? ' selected' : ''}>${esc(o)}</option>`).join('') +
+        `</select></div>`;
+    }
+  }
+  wrap.innerHTML = html;
+  wrap.querySelector('.preset-pick').addEventListener('change', e => {
+    p.preset = e.target.value;
+    p.cfg = { ...(PANEL_PRESETS[p.preset].defaults || {}) };
+    savePanels(); renderPanelGrid(); refreshAllPanels();
+  });
+  for (const inp of wrap.querySelectorAll('[data-cfg]')) {
+    inp.addEventListener('change', () => {
+      const key = inp.dataset.cfg;
+      p.cfg[key] = inp.type === 'number' ? +inp.value : inp.value;
+      savePanels(); refreshPanel(p);
+    });
+  }
+}
+
+function togglePanelConfig(p) {
+  const wrap = $('config-' + p.id);
+  wrap.classList.toggle('open');
+}
+
+function removePanel(id) {
+  panels = panels.filter(p => p.id !== id);
+  savePanels(); renderPanelGrid(); refreshAllPanels();
+}
+
+function addPanel() {
+  panels.push({ id: nextPanelId(), preset: 'time-series', cfg: {} });
+  savePanels(); renderPanelGrid(); refreshAllPanels();
+}
+
+function resetPanels() {
+  panels = structuredClone(DEFAULT_PANELS);
+  savePanels(); renderPanelGrid(); refreshAllPanels();
+}
+
+function granularityChoice() {
+  return $('chart-granularity')?.value || 'auto';
+}
+
+async function refreshPanel(p) {
+  const where = buildWhere();
+  const g = pickGranularity(granularityChoice(), dateFrom.value, dateTo.value);
+  const preset = PANEL_PRESETS[p.preset];
+  const titleEl = $('title-' + p.id);
+  if (titleEl) titleEl.textContent = preset.title(p.cfg, g);
+  try {
+    await preset.render(p, where, g);
+  } catch (err) {
+    console.error('Panel render failed:', p, err);
+  }
+}
+
+async function refreshAllPanels() {
+  const g = pickGranularity(granularityChoice(), dateFrom.value, dateTo.value);
+  const eff = $('chart-granularity-effective');
+  if (eff) {
+    eff.textContent = granularityChoice() === 'auto'
+      ? `(auto → ${granularityLabel(g)})` : '';
+  }
+  await Promise.all(panels.map(refreshPanel));
+}
+
+// Backwards-compat shim — runQuery still calls refreshCharts(where).
+async function refreshCharts(_where) { await refreshAllPanels(); }
 
 // ─── Charts toggle ───────────────────────────────────────────────────────────
 $('charts-btn').addEventListener('click', () => {
   const panel = $('charts-panel');
   const open = panel.classList.toggle('open');
   $('charts-btn').classList.toggle('active', open);
-  if (open) refreshCharts(buildWhere());
+  if (open) {
+    // First open: build the panel grid from the saved layout, then refresh.
+    if (!$('charts-grid').children.length) renderPanelGrid();
+    refreshAllPanels();
+  }
+});
+
+$('chart-granularity').addEventListener('change', () => {
+  if ($('charts-panel').classList.contains('open')) refreshAllPanels();
+});
+$('add-panel-btn').addEventListener('click', addPanel);
+$('reset-panels-btn').addEventListener('click', () => {
+  if (confirm('Reset all panels to the default layout?')) resetPanels();
 });
 
 // ─── CSV export ──────────────────────────────────────────────────────────────
@@ -1079,15 +1625,19 @@ $('export-btn').addEventListener('click', async () => {
     ORDER BY ${sortCol} ${sortDir}, case_number
   `)).toArray();
   const cols = ['department','case_number','case_title','court_date','hearing_time',
-                'calendar_matter','motion_type','motion_subtype','judge','ruling','admin_notes','courtcall'];
+                'calendar_matter','motion_type','motion_subtype','outcome','outcome_subtype',
+                'judge','ruling','admin_notes','courtcall'];
   const lines = [cols.join(',')];
   for (const r of all) {
+    if (!outcomeFilterMatches(r)) continue;
     const m = lookupMotion(r.department, r.calendar_matter);
     const sp = splitRuling(r.ruling, r.department);
+    const o  = lookupOutcome(sp.ruling);
     const rec = {
       department: r.department, case_number: r.case_number, case_title: r.case_title,
       court_date: r.court_date, hearing_time: r.hearing_time,
       calendar_matter: r.calendar_matter, motion_type: m.type, motion_subtype: m.subtype || '',
+      outcome: o.outcome, outcome_subtype: o.subtype || '',
       judge: r.judge, ruling: sp.ruling, admin_notes: sp.admin, courtcall: sp.courtcall,
     };
     lines.push(cols.map(c => csvCell(rec[c])).join(','));
@@ -1098,6 +1648,28 @@ $('export-btn').addEventListener('click', async () => {
   a.click();
   $('export-btn').disabled = false; $('export-btn').textContent = orig;
 });
+
+// Outcome filters live outside SQL because the classifier reads ruling text.
+// Apply them in JS to whatever rows the SQL pass returns.
+function outcomeFilters() {
+  return customFilters.filter(f =>
+    (f.col === 'outcome' || f.col === 'outcome_subtype') && (f.value ?? '').trim()
+  );
+}
+function outcomeFilterMatches(row) {
+  const filters = outcomeFilters();
+  if (!filters.length) return true;
+  const sp = splitRuling(row.ruling, row.department);
+  const o  = lookupOutcome(sp.ruling);
+  for (const f of filters) {
+    const v = (f.value || '').trim();
+    const actual = f.col === 'outcome' ? (o.outcome || '') : (o.subtype || '');
+    if (f.op === 'is'           && actual !== v) return false;
+    if (f.op === 'is not'       && actual === v) return false;
+    if (f.op === 'contains'     && !actual.toLowerCase().includes(v.toLowerCase())) return false;
+  }
+  return true;
+}
 
 // ─── Clear ───────────────────────────────────────────────────────────────────
 $('clear-btn').addEventListener('click', async () => {
@@ -1207,12 +1779,15 @@ function openModal(r) {
   $('modal-title').textContent = r.case_title ?? '';
   const m = lookupMotion(r.department, r.calendar_matter);
   const sp = splitRuling(r.ruling, r.department);
+  const o = lookupOutcome(sp.ruling);
   const meta = $('modal-meta');
   meta.innerHTML = '';
   const pills = [
     r.department ? `Dept ${r.department}` : null,
     r.case_number, r.court_date, r.hearing_time, r.judge,
     m.type, m.subtype && `· ${m.subtype}`,
+    o.outcome && o.outcome !== 'Other' && o.outcome !== 'Unknown' ? `→ ${o.outcome}` : null,
+    o.subtype ? `· ${o.subtype}` : null,
   ].filter(Boolean);
   for (const p of pills) {
     const span = document.createElement('span');

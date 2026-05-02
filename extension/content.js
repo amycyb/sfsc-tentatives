@@ -177,6 +177,12 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
 
   const jq = window.jQuery || window.$;
   const prevHTML = document.getElementById('resultsRulings')?.innerHTML ?? null;
+  // Also capture the count text — when two consecutive dates both have 0
+  // rulings, the rulings table HTML is identical but the count line still
+  // re-renders. Polling either signal lets the empty→empty transition
+  // resolve as a valid 0-record scrape rather than timing out as "pending"
+  // (which the bulk handler then mis-attributes to errors).
+  const prevCount = document.getElementById('resultsCount')?.textContent ?? null;
 
   if (jq && jq(input).data('datepicker')) {
     try {
@@ -212,8 +218,7 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
 
   // Give an AJAX auto-search a moment to fire before looking for a submit button
   await new Promise(r => setTimeout(r, 400));
-  const earlyContainer = document.getElementById('resultsRulings');
-  if (earlyContainer && earlyContainer.innerHTML !== prevHTML) return scrape();
+  if (pageHasResponded(prevHTML, prevCount)) return scrape();
 
   // Fall back to explicit form submission (full-page-reload sites)
   const form = input.closest('form');
@@ -252,10 +257,29 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 500));
-    const container = document.getElementById('resultsRulings');
-    if (container && container.innerHTML !== prevHTML) return scrape();
+    if (pageHasResponded(prevHTML, prevCount)) return scrape();
   }
+  // Final-check fallback: a date with 0 rulings whose previous search also
+  // had 0 rulings leaves the rulings table and count text both unchanged,
+  // so the polling loop above can't tell a still-loading page from a
+  // genuinely-empty result. If the count element now reports a numeric
+  // total (even 0), the page DID render — return that scrape rather than
+  // a pending marker that bulk would mis-route to errors.
+  const finalScrape = scrape();
+  if (finalScrape && typeof finalScrape.reported_total === 'number') return finalScrape;
   return { pending: true };
+}
+
+// True once the SFTC page has clearly responded to our submit. Either signal
+// is sufficient: the rulings table can change without the count text (rulings
+// found) or the count text can change without the rulings table (zero rulings
+// after a non-zero search, or vice versa).
+function pageHasResponded(prevHTML, prevCount) {
+  const container = document.getElementById('resultsRulings');
+  if (container && container.innerHTML !== prevHTML) return true;
+  const countEl = document.getElementById('resultsCount');
+  if (countEl && countEl.textContent !== prevCount) return true;
+  return false;
 }
 
 // ── Message listener ──────────────────────────────────────────────────────────
