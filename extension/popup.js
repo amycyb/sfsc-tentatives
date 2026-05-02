@@ -360,6 +360,9 @@ $('send-btn').addEventListener('click', async () => {
       } else if (res?.duplicate) {
         setStatus(`Already submitted for this date — skipped. (${res.path})`, 'warn');
         $('send-btn').disabled = false;
+      } else if (res?.stale) {
+        setStatus(`Page held ${res.staleCount} stale rulings (Court Date ≠ search date) — committed empty marker → ${res.path}`, 'warn');
+        $('send-btn').disabled = false;
       } else {
         setStatus(`Committed ${scrapedData.rulings.length} rulings → ${res.path}`, 'success');
       }

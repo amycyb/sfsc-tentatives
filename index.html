@@ -221,54 +221,6 @@
     }
     .modal-close:hover { color: #333; }
 
-    /* ── Install modal ── */
-    #install-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 300;
-      padding: 2rem 1rem; overflow-y: auto;
-    }
-    #install-overlay.open { display: flex; align-items: center; justify-content: center; }
-    .install-modal {
-      background: white; border-radius: 8px;
-      max-width: 520px; width: 100%;
-      padding: 1.5rem; position: relative; margin: auto;
-    }
-    .install-modal h2 { font-size: 1rem; margin-bottom: 0.25rem; }
-    .install-modal .sub { font-size: 0.8rem; color: #666; margin-bottom: 1.25rem; }
-    .install-modal .step {
-      display: flex; gap: 0.75rem; align-items: flex-start;
-      margin-bottom: 0.85rem;
-    }
-    .step-num {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: #1a3a5c; color: white;
-      font-size: 0.72rem; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 1px;
-    }
-    .step-body { font-size: 0.82rem; line-height: 1.5; }
-    .step-body b { display: block; margin-bottom: 0.15rem; }
-    .step-body code {
-      background: #f0f2f5; padding: 0.1rem 0.35rem;
-      border-radius: 3px; font-size: 0.78rem; font-family: monospace;
-    }
-    .dl-btn {
-      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-      width: 100%; padding: 0.6rem;
-      background: #1a3a5c; color: white;
-      border: none; border-radius: 5px;
-      font-size: 0.875rem; font-weight: 600; cursor: pointer;
-      text-decoration: none; margin-bottom: 1.25rem;
-    }
-    .dl-btn:hover { background: #214d78; }
-    .divider { border: none; border-top: 1px solid #eee; margin: 1rem 0; }
-    .pat-note {
-      background: #fffbea; border: 1px solid #f0d060;
-      border-radius: 5px; padding: 0.6rem 0.75rem;
-      font-size: 0.78rem; color: #5a4a00; margin-top: 0.5rem;
-    }
-    .pat-note a { color: #1a3a5c; }
-
     @media (max-width: 680px) {
       .col-time, .col-dept { display: none; }
       #search { width: 140px; }
@@ -284,7 +236,6 @@
     <span id="stats">Loading…</span>
   </div>
   <div class="header-right">
-    <button class="hbtn hbtn-ghost" id="ext-btn">⬇ Install Extension</button>
     <button class="hbtn hbtn-ghost" id="export-btn">⬇ CSV</button>
   </div>
 </header>
@@ -359,58 +310,6 @@
     <div class="ruling" id="modal-ruling"></div>
     <div class="admin-label" id="modal-admin-label" style="display:none">Administrative notes</div>
     <div class="admin-notes" id="modal-admin"></div>
-  </div>
-</div>
-
-<!-- Extension install modal -->
-<div id="install-overlay">
-  <div class="install-modal">
-    <button class="modal-close" id="install-close">×</button>
-    <h2>Install the Browser Extension</h2>
-    <p class="sub">Click once on any SFSC tentative rulings page to send the day's rulings straight to this database.</p>
-
-    <a class="dl-btn" href="sfsc-extension.zip" download>
-      ⬇ Download sfsc-extension.zip
-    </a>
-
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-body">
-        <b>Unzip the downloaded file</b>
-        Extract <code>sfsc-extension.zip</code> to a permanent folder on your computer.
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-body">
-        <b>Open Chrome extensions</b>
-        Go to <code>chrome://extensions</code> and enable <b>Developer mode</b> (top-right toggle).
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-body">
-        <b>Load the extension</b>
-        Click <b>Load unpacked</b> and select the unzipped folder.
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-body">
-        <b>Configure settings</b>
-        Click the extension icon → ⚙ Settings. Enter your GitHub token and confirm the repo is set to <code>amitabho/sfsc-tentatives</code>.
-      </div>
-    </div>
-
-    <hr class="divider">
-
-    <div class="pat-note">
-      <b>GitHub token required.</b> Create one at
-      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">
-        github.com → Settings → Developer settings → Fine-grained tokens
-      </a>.
-      Grant it <b>Contents: Read and Write</b> on this repository.
-    </div>
   </div>
 </div>
 
@@ -650,21 +549,9 @@ function closeModal() { $('overlay').classList.remove('open'); }
 $('modal-close').addEventListener('click', closeModal);
 $('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
 
-// ── Install modal ─────────────────────────────────────────────────────────────
-$('ext-btn').addEventListener('click', () =>
-  $('install-overlay').classList.add('open'));
-$('install-close').addEventListener('click', () =>
-  $('install-overlay').classList.remove('open'));
-$('install-overlay').addEventListener('click', e => {
-  if (e.target.id === 'install-overlay') $('install-overlay').classList.remove('open');
-});
-
 // ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeModal();
-    $('install-overlay').classList.remove('open');
-  }
+  if (e.key === 'Escape') closeModal();
 });
 
 // ── URL state ─────────────────────────────────────────────────────────────────

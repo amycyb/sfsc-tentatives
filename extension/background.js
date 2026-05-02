@@ -73,18 +73,45 @@ async function getDeptDir(token, owner, repo, branch, department) {
 
 // ── Commit ────────────────────────────────────────────────────────────────────
 
-function courtDate(rulings) {
-  const raw = rulings?.[0]?.['Court Date'] ?? '';
+function parseCourtDateISO(raw) {
+  if (!raw) return null;
   const m = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
   return null;
 }
 
+function courtDate(rulings) {
+  return parseCourtDateISO(rulings?.[0]?.['Court Date'] ?? '');
+}
+
 async function commitToGitHub({ token, owner, repo, branch, data }) {
-  const { department, scraped_at, rulings } = data;
+  const { department, scraped_at } = data;
+  let { rulings } = data;
   const date = data._date || courtDate(rulings);
   if (!date) throw new Error('No court date — pass _date in payload when rulings is empty.');
+
+  // Stale-page guard. SFTC keeps the previous search's rulings in the DOM
+  // when the new search returns zero records, so a scrape of date X can
+  // surface rulings whose Court Date is some earlier date Y. Without this
+  // check we'd write `<X>-<time>.json` containing rulings for Y — yielding
+  // exactly the "uploaded 25 rulings to 2020-06-10 but it had 0 rulings"
+  // symptom. When detected, treat the scrape as zero rulings and commit an
+  // empty marker so the gap still closes.
+  let staleCount = 0;
+  if (rulings?.length) {
+    const wrongDate = rulings.find(r => {
+      const iso = parseCourtDateISO(r['Court Date'] || '');
+      return iso && iso !== date;
+    });
+    if (wrongDate) {
+      staleCount = rulings.length;
+      rulings = [];
+      data = { ...data, rulings: [], _stale_dropped: staleCount,
+               _stale_court_date: parseCourtDateISO(wrongDate['Court Date']) };
+    }
+  }
+
   const time = new Date(scraped_at).toISOString().slice(11, 19).replace(/:/g, '');
   const path = `raw/dept${department}/${date}-${time}.json`;
 
@@ -92,6 +119,9 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
   if (files.some(f => f.name.startsWith(`${date}-`))) return { duplicate: true, path };
 
   const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const message = staleCount
+    ? `Mark ${date} (Dept ${department}) — 0 rulings (page returned stale ${data._stale_court_date} data)`
+    : `Add ${rulings.length} rulings for ${date} (Dept ${department})`;
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
     method: 'PUT',
     headers: {
@@ -99,11 +129,7 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
     },
-    body: JSON.stringify({
-      message: `Add ${rulings.length} rulings for ${date} (Dept ${department})`,
-      content,
-      branch,
-    }),
+    body: JSON.stringify({ message, content, branch }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -114,7 +140,7 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
   files.push({ name: `${date}-${time}.json` });
 
   const json = await res.json();
-  return { ok: true, path, sha: json.content?.sha };
+  return { ok: true, path, sha: json.content?.sha, stale: !!staleCount, staleCount };
 }
 
 // ── Bulk scraping state machine ───────────────────────────────────────────────
@@ -331,7 +357,7 @@ async function commitAndAdvance() {
   // empty calendars without getting stuck).
   const dateRes = await sendMessage(tab.id, { action: 'get-date' });
   const currentDate = dateRes?.date || (data.rulings[0]?.['Court Date']
-    ? parseCourtDate(data.rulings[0]['Court Date']) : null);
+    ? parseCourtDateISO(data.rulings[0]['Court Date']) : null);
   if (!currentDate) {
     toast('SFSC: no date on this page — run a search first', 'error');
     return;
@@ -347,6 +373,8 @@ async function commitAndAdvance() {
     });
     commitMsg = res.duplicate
       ? `Already committed ${currentDate} — skipped`
+      : res.stale
+      ? `Page held stale rulings — marked ${currentDate} as 0 rulings`
       : `Committed ${data.rulings.length} ruling${data.rulings.length === 1 ? '' : 's'} for ${currentDate}`;
   } catch (err) {
     toast(`SFSC commit failed: ${err.message}`, 'error');
@@ -406,9 +434,3 @@ function sendMessage(tabId, msg) {
   );
 }
 
-function parseCourtDate(raw) {
-  const m = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  return null;
-}
