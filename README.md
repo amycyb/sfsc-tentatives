@@ -74,12 +74,13 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary>**Department 501** &nbsp;·&nbsp; 20 rulings &nbsp;·&nbsp; Latest: 2026-05-01 &nbsp;·&nbsp; 0 gaps</summary>
+<summary>**Department 501** &nbsp;·&nbsp; 36 rulings &nbsp;·&nbsp; Latest: 2026-05-01 &nbsp;·&nbsp; 2 gaps</summary>
 
-20 tentative rulings. Latest: 2026-05-01.
+36 tentative rulings. Latest: 2026-05-01.
 
-### Gaps (0)
+### Gaps (2)
 
-_None — all weekdays in range are accounted for._
+- 2024-02-23
+- 2024-03-04 → 2026-04-30
 
 </details>
