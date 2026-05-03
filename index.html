@@ -526,6 +526,8 @@
     .mcat-Writ        { background: #e0e0f0; color: #2a2a5c; border-color: #b0b0d0; }
     .mcat-Sanctions   { background: #ffe0e0; color: #5c1a1a; border-color: #d0a0a0; }
     .mcat-Fees       { background: #f0f0d8; color: #5c5c1a; border-color: #d0d0a0; }
+    .mcat-Fees-Costs { background: #f0f0d8; color: #5c5c1a; border-color: #d0d0a0; }
+    .mcat-Unlawful-Detainer { background: #f5e0d0; color: #5c2a1a; border-color: #d8b090; }
     .mcat-Attorney    { background: #e8e0f0; color: #4a2a8a; border-color: #c8b0e0; }
     .mcat-Procedural  { background: #f0f0f0; color: #555; border-color: #ccc; }
     .mcat-Probate     { background: #ffe8d8; color: #5c3a1a; border-color: #d0b090; }
@@ -544,6 +546,23 @@
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .mtype-sub { font-size: 0.7rem; color: #888; margin-top: 1px; }
+    /* Category glyph pill — same height as the Motion Type pill, sits
+       to its left, color-coded by category so the broad bucket reads
+       at a glance. The glyph's `title` exposes the category name on
+       hover for users who don't recognise the symbol. Structural
+       properties only here; the actual colors come from the
+       `.mcat-<Category>` palette already used by the (toggleable)
+       Category column, so the glyph pill matches what that column
+       shows. We style the box only and let per-category classes
+       (declared above) supply background / color / border. */
+    .mcat-glyph {
+      display: inline-block; padding: 1px 6px;
+      border: 1px solid transparent;
+      border-radius: 10px; font-size: 0.72rem; line-height: inherit;
+      cursor: help;
+      min-width: 1.1em; text-align: center; vertical-align: baseline;
+      margin-right: 0.3rem; font-variant-emoji: text;
+    }
     .outcome-pill {
       display: inline-block; padding: 1px 6px;
       border-radius: 10px; font-size: 0.72rem;
@@ -1102,7 +1121,9 @@ const CIVIL_LAW_MOTION_RULES = [
     'Motion to Strike'],
   [t => /\bsummary judgment\b|\bsummary adjudication\b|\bmsj\b/i.test(t),
     'Summary Judgment / Adjudication'],
-  [t => /\bjudgment on the pleadings\b/i.test(t), 'Judgment on the Pleadings'],
+  // Catch the typo'd / abbreviated forms ("Judgmnt", "Mtn for Judg.")
+  // that show up in the rough captions.
+  [t => /\bjudg?ment\s+on\s+the\s+pleadings\b/i.test(t), 'Judgment on the Pleadings'],
   [t => /\bcompel\s+arbitration\b/i.test(t), 'Compel Arbitration'],
   // Deem RFAs Admitted MUST come before the generic Compel rule below.
   // Discovery motions framed as "Motion to Compel Responses to RFAs and
@@ -1115,10 +1136,24 @@ const CIVIL_LAW_MOTION_RULES = [
   //   "...Matters In Request For Admission Of Truth Of Facts Be Deemed Admitted"
   // Loosen to a "deem...admit" lazy match plus the establishing-admissions
   // form, both anchored on word boundaries.
-  [t => /\bdeem(?:ed)?\b[\s\S]*?\badmit(?:ted)?\b/i.test(t)
+  [t => /\bdeem(?:ed|ing)?\b[\s\S]*?\badmit(?:ted)?\b/i.test(t)
      || /\b(?:order\s+)?establish(?:ing)?\s+admissions?\b/i.test(t),
     'Deem RFAs Admitted'],
-  [t => /\bcompel\b/i.test(t), 'Compel Discovery', compelSubtype],
+  // Reopen-discovery is a dedicated CCP § 2024.050 motion — bucket it
+  // with the rest of the discovery family before the generic Compel
+  // catch-all, which would otherwise pull "compel further responses
+  // and reopen discovery" captions in.
+  [t => /\breopen(?:ing)?\s+(?:of\s+)?discovery\b/i.test(t), 'Compel Discovery', () => 'Reopen Discovery'],
+  // Independent / Mental Medical Exam motions (CCP § 2032.020) — also
+  // discovery, also pre-empted before the Compel catch-all so the
+  // examination-specific subtype wins.
+  [t => /\b(?:mental|physical|independent\s+medical)\s+examination\b|\bime\b/i.test(t),
+    'Compel Discovery', () => 'Mental / Medical Examination'],
+  // Loosen "compel" to also catch the gerund / past-tense / plural —
+  // captions like "Order Compelling Further Responses" used to fall
+  // through to Miscellaneous because the original `\bcompel\b`
+  // required the bare verb form.
+  [t => /\bcompel(?:ling|s|led)?\b/i.test(t), 'Compel Discovery', compelSubtype],
   // Quash matchers loosened to also catch the gerund form ("Order
   // Quashing Subpoena…") — the audit found ~60 captions in Misc that
   // used "quashing" instead of "quash" and the original rule didn't
@@ -1128,7 +1163,7 @@ const CIVIL_LAW_MOTION_RULES = [
      || /\bquashing\s+subpoena/i.test(t)
      || /\bquashing\s+(?:notice\s+)?(?:of\s+)?deposition\b/i.test(t),
     'Quash Subpoena'],
-  [t => /\bmotion to quash\b/i.test(t)
+  [t => /\b(?:motion|mtn|ntc\s+of\s+mtn)\s+(?:and\s+(?:motion|mtn)\s+)?to\s+quash\b/i.test(t)
      || /\border\s+quashing\b/i.test(t),
     'Quash Service / Jurisdiction'],
   // Protective-order family also covers the de/redesignation motions
@@ -1157,7 +1192,7 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\bpro hac vice\b/i.test(t), 'Pro Hac Vice'],
   [t => /\brelieved as counsel\b|\bwithdraw(?:al)? (?:as|of) (?:attorney|counsel)\b|\bwithdraw as counsel\b/i.test(t),
     'Counsel — Withdraw / Be Relieved'],
-  [t => /\bset aside\b.*\b(?:default|judgment|order|dismissal)\b|\bvacate\b.*\b(?:default|judgment|order|renewal)\b|\bleave to defend\b/i.test(t),
+  [t => /\bset aside\b.*\b(?:default|judgment|order|dismissal)\b|\bvacate\b.*\b(?:default|judgment|order|renewal)\b|\bleave to defend\b|\brelief\s+from\s+default\b/i.test(t),
     'Set Aside / Vacate'],
   [t => /\bclaim of exemption\b/i.test(t), 'Claim of Exemption'],
   [t => /\bright to attach\b|\bwrit of attachment\b|\battach(?:ment)? order\b/i.test(t), 'Right to Attach'],
@@ -1183,7 +1218,9 @@ const CIVIL_LAW_MOTION_RULES = [
      || /\bdetermination\s+of\s+good\s+faith\s+settlement\b/i.test(t)
      || /\bccp\s*§?\s*877\.6\b/i.test(t),
     'Good Faith Settlement'],
-  [t => /\bfinal approval\b/i.test(t) && !/\bclass\b|\bsettlement\b/i.test(t), 'Final Approval Hearing'],
+  [t => (/\bfinal approval\b/i.test(t) && !/\bclass\b|\bsettlement\b/i.test(t))
+     || /\bfinal\s+fairness\s+hearing\b|\bfairness\s+hearing\b/i.test(t),
+    'Final Approval Hearing'],
   [t => /\bapprove(?:.*settlement)?\b|\bsettlement.*approve\b|\bclass action settlement\b|\bclass settlement\b|\bproposition\s*65\b|\bprop\.?\s*65\b|\bpreliminary approval\b|\bfinal approval\b/i.test(t),
     'Approve Settlement'],
   [t => /\bconsolidat(?:e|ion|ing)\b/i.test(t), 'Consolidate'],
@@ -1192,7 +1229,7 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\bstay\b/i.test(t), 'Stay'],
   [t => /\bdismiss(?:al)?\b/i.test(t), 'Dismiss'],
   [t => /\breceiver\b/i.test(t), 'Receiver'],
-  [t => /\bpreliminary injunction\b|\btemporary restraining order\b|\btro\b/i.test(t), 'Injunction / TRO'],
+  [t => /\bpreliminary\s+injun\w*\b|\btemporary\s+restraining\s+order\b|\btro\b/i.test(t), 'Injunction / TRO'],
   [t => /\blis pendens\b|\bexpunge\b/i.test(t), 'Lis Pendens / Expunge'],
   // New Trial and Reconsideration are distinct post-trial motions —
   // CCP § 657 (new trial) addresses errors at the trial itself, CCP
@@ -1208,18 +1245,21 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\breconsider(?:ation)?\b/i.test(t),                     'Reconsideration'],
   [t => /\bclass certificat(?:ion|e)\b|\bcertify class\b|\bcertify a class\b/i.test(t), 'Class Certification'],
   [t => /\bintervene\b|\bintervention\b/i.test(t), 'Intervene'],
-  [t => /\bleave to file\b|\bleave to amend\b|\bamend complaint\b|\bfile (?:an? )?amended\b/i.test(t),
+  // Loosened to handle the awkward double-"to" form ("MOTION FOR
+  // LEAVE TO To File Cross-Complaint") that turns up in the raw
+  // captions, and accept the gerund ("filing").
+  [t => /\bleave\s+to\s+(?:to\s+)?file\b|\bleave\s+to\s+amend\b|\bamend\s+complaint\b|\bfile\s+(?:an?\s+)?amended\b|\bleave\s+to\s+\S+\s+file\b/i.test(t),
     'Leave to Amend / File'],
   [t => /\bsale of dwelling\b|\bsale of (?:real )?property\b/i.test(t), 'Sale of Dwelling / Property'],
   [t => /\bassignment of right\b|\bassignment order\b|\bassignment of rights\b/i.test(t), 'Assignment Order'],
   [t => /\brenewal of judgment\b/i.test(t), 'Renewal of Judgment'],
   [t => /\bcontempt\b/i.test(t), 'Contempt'],
-  [t => /\bcontinuance\b|\badvance hearing\b|\bcontinue (?:the )?hearing\b/i.test(t), 'Continuance / Advance'],
+  [t => /\bcontinuance\b|\badvance\s+(?:the\s+)?hearing\b|\bcontinue\s+(?:the\s+)?(?:hearing|trial|case)\b/i.test(t), 'Continuance / Advance'],
   [t => /\b(?:to |motion to |under )seal\b|\bfile\s+(?:records\s+)?under\s+seal\b/i.test(t), 'Sealing'],
   [t => /\bchange of venue\b|\btransfer (?:of )?venue\b|\btransfer venue\b|\bmotion to transfer\b|\bvenue\b/i.test(t),
     'Venue'],
   [t => /\bcompliance hearing\b/i.test(t), 'Compliance Hearing'],
-  [t => /\bwrit of mandate\b|\bpetition for writ\b/i.test(t), 'Writ of Mandate'],
+  [t => /\bwrit\s+of\s+(?:administrative\s+)?mandate\b|\bwrit\s+of\s+(?:administrative\s+)?mandamus\b|\bpetition\s+for\s+(?:peremptory\s+)?writ\b|\bperemptory\s+writ\b/i.test(t), 'Writ of Mandate'],
   [t => /\bwrit of possession\b/i.test(t), 'Writ of Possession'],
   // Enforce Settlement: loosen to also match "enforcing terms of
   // settlement" / "motion for an order enforcing".
@@ -1237,9 +1277,64 @@ const CIVIL_LAW_MOTION_RULES = [
      || /\bleave\s+to\s+augment\b/i.test(t)
      || /\baugment\s+expert\b/i.test(t),
     'Augment Expert Disclosure'],
-  [t => /\bentry of (?:consent )?judgment\b/i.test(t), 'Entry of Judgment'],
+  [t => /\b(?:entry\s+of|enter)\s+(?:consent\s+)?judgment\b|\bjudgment\s+pursuant\s+to\s+stipulation\b|\bamend(?:ed)?\s+(?:the\s+)?judgment\b/i.test(t),
+    'Entry of Judgment'],
   [t => /\bpetition\b.*\btransfer\b.*\bpayment\b|\bstructured settlement\b/i.test(t),
     'Structured Settlement Transfer'],
+  // Trial-preference motion (CCP § 36) — recurring civil L&M motion
+  // that previously fell through. Caption forms include "PREFERENCE
+  // / PREFERENTIAL SETTING" and "Order Granting Preference In Setting
+  // Case For Trial".
+  [t => /\bpreference\s+(?:in\s+)?setting\b|\bpreferential\s+setting\b|\btrial\s+preference\b/i.test(t),
+    'Trial Preference / Setting'],
+  // Reclassification of case (CCP § 403.040) — moves between limited
+  // and unlimited civil. Hyphen-tolerant (some captions write
+  // "Re-Classify").
+  [t => /\bre-?classif(?:y|ication|ying)\b/i.test(t),
+    'Reclassification'],
+  // Claim-of-right-to-possession hearings come up in unlawful-detainer
+  // cases when a non-party occupant claims they live there.
+  [t => /\bclaim\s+of\s+right\s+to\s+possession\b/i.test(t),
+    'Claim of Right to Possession'],
+  // Surplus-funds motions (Civil Code § 2924j) following non-judicial
+  // foreclosure sale. Real-estate / housing court vocabulary.
+  [t => /\bsurplus\s+funds\b|\b2924j\b/i.test(t),
+    'Surplus Funds'],
+  // ─── Unlawful-detainer-specific motions ──────────────────────────────
+  // The handful of motion types that only show up on CUD-prefixed
+  // unlawful-detainer cases. They live in a dedicated "Unlawful
+  // Detainer" category so a user filtering for landlord-tenant work
+  // can see them at a glance.
+  //
+  // COVID rental-debt forfeiture-prevention applications (CCP
+  // § 1179.05 family) — used to be lumped in with Real Estate, but
+  // every row in the corpus comes from a CUD case so the dedicated
+  // bucket is more honest.
+  [t => /\bcovid-?19\b[\s\S]{0,80}\b(?:rental\s+debt|forfeiture)\b|\bprevent\s+forfeiture\b/i.test(t),
+    'COVID Rental Forfeiture'],
+  // Financial Distress Declaration (CCP § 1179.07) — the tenant
+  // declaration that triggers special UD protections. Distinct
+  // motion type, not really a generic "declaration".
+  [t => /\bfinancial\s+distress\s+declaration\b/i.test(t),
+    'Financial Distress Declaration'],
+  // Motion to restrict / seal the UD record (CCP § 1161.2) — a
+  // tenant-specific privacy mechanism that doesn't exist outside
+  // UD cases.
+  [t => /\brestrict\s+(?:the\s+)?unlawful\s+detainer\s+record\b|\bccp\s*§?\s*1161\.2\b|\bmask\s+(?:the\s+)?unlawful\s+detainer\b/i.test(t),
+    'Restrict UD Record'],
+  // Relief from forfeiture (CCP § 1174 / Civ Code § 3275) — UD-
+  // specific equitable relief letting a tenant cure the breach
+  // and stay.
+  [t => /\brelief\s+from\s+forfeiture\b/i.test(t),
+    'Relief from Forfeiture'],
+  // Motion to bar possession / strike UD — landlord-side post-
+  // judgment relief in UD cases.
+  [t => /\bbar\s+possession\b|\bstrike\s+unlawful\s+detainer\b/i.test(t),
+    'Bar Possession / Strike UD'],
+  // Tenant motions to restore access to the premises after a
+  // self-help eviction or alleged illegal lockout.
+  [t => /\brestore\s+(?:access|possession|mailbox)\b|\bimmediate(?:ly)?\s+restore\b/i.test(t),
+    'Restore Access / Possession'],
 ];
 
 // Probate (Dept 204) calendar matters use very different vocabulary from
@@ -1260,27 +1355,49 @@ const PROBATE_MOTION_RULES = [
   [t => /\b(?:report\s+of\s+sale|petition\s+to\s+confirm\s+sale)\b/i.test(t),
                                                                           'Sale of Real Property'],
   [t => /\bconservatorship\b|\bguardianship\b/i.test(t),                 'Conservatorship / Guardianship'],
-  [t => /\bstatus\s+(?:report|hearing|on\s+(?:close|distribution))\b|\badded\s+to\s+calendar\s+for\s+status\b/i.test(t),
+  // Inventory & Appraisal — probate-specific compliance event. Catches
+  // "FILING OF INVENTORY", "OBJECTIONS TO INVENTORY AND APPRAISAL",
+  // "Status On Filing Of Inventory And Appraisal", etc.
+  [t => /\binventory\s+(?:and|&)\s+appraisal\b|\bfiling\s+of\s+inventory\b|\bobjections?\s+to\s+inventory\b/i.test(t),
+                                                                          'Inventory / Appraisal'],
+  // Status / Compliance — broader phrasings beyond the original
+  // status-report / status-hearing forms. Catches "REPORT OF STATUS
+  // OF ADMINISTRATION", "Status Of Closing The Estate", "Order Of
+  // Status Hearing", "ADDED TO CALENDAR FOR Will Contest", etc.
+  [t => /\bstatus\s+(?:report|hearing|on\s+(?:close|distribution|filing|order|mediation|closing|the)|of\s+(?:administration|the\s+estate|estate|mediation|closing|petition|close|distribution|the\s+close))\b/i.test(t)
+     || /\breport\s+of\s+status\s+of\s+administration\b/i.test(t)
+     || /\border\s+of\s+status\s+hearing\b/i.test(t)
+     || /\badded\s+to\s+calendar\s+for\s+(?:status|filing|close|will\s+contest|order\s+to\s+appear|case\s+management|further)\b/i.test(t),
                                                                           'Status / Compliance Hearing'],
   [t => /\border\s+to\s+show\s+cause\b|\bosc\b/i.test(t),                'Order to Show Cause'],
-  [t => /\border\s+of\s+status\s+hearing\b/i.test(t),                    'Status / Compliance Hearing'],
   [t => /\bcase\s+management\s+hearing\b/i.test(t),                      'Case Management'],
   [t => /\bpetition\s+for\s+(?:order|approval|distribution|allowance|fees?)\b/i.test(t),
                                                                           'Petition (other)'],
+];
+
+// Catch-all: any caption containing "petition" that didn't match a
+// more specific rule above lands in 'Petition (other)'. Kept as its
+// own list and appended LAST in the unified order so a caption like
+// "Petition for Writ of Mandate" still hits the civil "Writ of
+// Mandate" rule before falling through to this catch-all.
+const PROBATE_GENERIC_RULES = [
   [t => /\bpetition\b/i.test(t),                                          'Petition (other)'],
 ];
 
-// Department → motion-rule list. Departments with no entry fall back to the
-// civil-law list (better than nothing, surfaces a lot as Miscellaneous).
-const MOTION_RULES_BY_DEPT = {
-  '204': PROBATE_MOTION_RULES,
-  '302': CIVIL_LAW_MOTION_RULES,
-};
-const MOTION_RULES_DEFAULT = CIVIL_LAW_MOTION_RULES;
-
-function rulesForDept(dept) {
-  return MOTION_RULES_BY_DEPT[dept] || MOTION_RULES_DEFAULT;
-}
+// Single unified rule list: specific probate rules first (their
+// patterns are narrow enough that they never match civil captions),
+// then the civil law-and-motion rules, then the probate `\bpetition\b`
+// catch-all last. Running the same list against every dept keeps the
+// design strictly hierarchical (Caption → Type via these rules, then
+// Type → Category via MOTION_CATEGORY) — no per-dept overrides, so an
+// out-of-place matter like a CEQA writ filed in a discovery dept
+// still gets classified by what its caption actually says rather
+// than what the dept usually hears.
+const ALL_MOTION_RULES = [
+  ...PROBATE_MOTION_RULES,
+  ...CIVIL_LAW_MOTION_RULES,
+  ...PROBATE_GENERIC_RULES,
+];
 
 // ─── Motion categories ──────────────────────────────────────────────────────
 // Coarse-grained taxonomy that groups every motion type into one of a
@@ -1389,6 +1506,21 @@ const MOTION_CATEGORY = {
   'Status / Compliance Hearing':                       'Procedural',
   'Case Management':                                   'Procedural',
   'Petition (other)':                                  'Probate',
+  'Inventory / Appraisal':                             'Probate',
+  // New civil L&M types added in the Misc-audit pass.
+  'Trial Preference / Setting':                        'Procedural',
+  'Reclassification':                                  'Procedural',
+  'Surplus Funds':                                     'Real Estate',
+  // Unlawful-detainer-specific motion types — only seen on CUD-
+  // prefixed cases in the corpus, so they get their own category
+  // rather than being lumped in with general Real Estate work.
+  'Claim of Right to Possession':                      'Unlawful Detainer',
+  'COVID Rental Forfeiture':                           'Unlawful Detainer',
+  'Financial Distress Declaration':                    'Unlawful Detainer',
+  'Restrict UD Record':                                'Unlawful Detainer',
+  'Relief from Forfeiture':                            'Unlawful Detainer',
+  'Bar Possession / Strike UD':                        'Unlawful Detainer',
+  'Restore Access / Possession':                       'Unlawful Detainer',
   // Fallthrough for any future motion type that's added without an
   // explicit mapping — surfaces as "Other" rather than throwing.
   'Miscellaneous':                                     'Other',
@@ -1397,6 +1529,38 @@ const MOTION_CATEGORY = {
 function motionCategory(motionType) {
   if (!motionType) return 'Other';
   return MOTION_CATEGORY[motionType] || 'Other';
+}
+
+// Hoverable single-glyph indicator that sits next to the Motion Type
+// in the table — lets a user spot the broad category at a glance
+// without the dedicated Category column eating horizontal space.
+// Hover reveals the category name; the column itself stays toggleable
+// via the 🧰 Columns menu for users who want a sortable / filterable
+// Category cell.
+const CATEGORY_GLYPHS = {
+  'Probate':       '❦',  // ❦  floral heart
+  'Pleadings':     '¶',  // ¶  pilcrow
+  'Procedural':    '⚙',  // ⚙  gear
+  'Discovery':     '⌕',  // ⌕  telephone-recorder
+  'Other':         '?',
+  'Dispositive':   '⚖',  // ⚖  scales
+  'Attorney':      '✑',  // ✑  upper-right pencil
+  'Sanctions':     '⊗',  // ⊗  circled times
+  'Post-Trial':    '↻',  // ↻  clockwise open arrow
+  'Arbitration':   '⚭',  // ⚭  marriage symbol
+  'Settlement':    '☮',  // ☮  peace
+  'Post-Judgment': '⮌',  // ⮌  rightwards arrow with bent tail
+  'Fees & Costs':  '$',
+  'Real Estate':   '⌂',  // ⌂  house
+  'Writ':          '⚔',  // ⚔  crossed swords
+  'Injunctive':    '⚠',  // ⚠  warning
+  'Class Action':  '❉',  // ❉  balloon-spoked asterisk
+  // Unlawful-detainer eviction work — squared X reads as "barred
+  // from the premises".
+  'Unlawful Detainer': '⌧',
+};
+function categoryGlyph(category) {
+  return CATEGORY_GLYPHS[category] || CATEGORY_GLYPHS['Other'];
 }
 
 function compelSubtype(t) {
@@ -1432,13 +1596,13 @@ function stripJoinderFraming(cm) {
   return out;
 }
 
-function classifyMotion(cm, dept) {
+function classifyMotion(cm) {
   if (!cm) return { type: 'Miscellaneous', subtype: null };
   // Pre-strip joinder decoration so the underlying motion's vocabulary
   // drives the rule match. A bare "Joinder" with no underlying motion
   // — rare — falls through to Miscellaneous as before.
   const probe = stripJoinderFraming(cm) || cm;
-  for (const rule of rulesForDept(dept)) {
+  for (const rule of ALL_MOTION_RULES) {
     if (rule[0](probe)) {
       const sub = rule[2] ? rule[2](probe) : null;
       return { type: rule[1], subtype: sub };
@@ -1793,14 +1957,12 @@ function judicialOfficerType(row) {
 
 // Motion-category lookup for a row. The category replaces the earlier
 // boolean "Discovery?" badge with a coarse-grained taxonomy bucket
-// surfaced as a sortable Category column. Every Dept 301 (Discovery)
-// row defaults to "Discovery" regardless of motion-type classifier
-// output — the dept is named for it, and the user confirmed that the
-// rare non-discovery calendared business there (CEQA, writs) is
-// acceptably mis-bucketed.
+// surfaced as a sortable Category column. Categories come purely from
+// the motion-type classifier (no per-dept override) — Dept 301 hears
+// mostly discovery business but occasional CEQA / writ matters slip
+// through, and we want those bucketed accurately.
 function rowCategory(row) {
   if (!row) return 'Other';
-  if (String(row.department) === '301') return 'Discovery';
   const m = lookupMotion(row.department, row.calendar_matter);
   return motionCategory(m.type);
 }
@@ -1841,8 +2003,12 @@ function jsSortKey(row, col) {
     return [rowCategory(row) || '', ''];
   }
   if (col === 'motion_type') {
+    // Sort hierarchically — Category first (so all "Discovery" rows
+    // group together), then Motion Type alphabetically within each
+    // category. Mirrors the parent → child filter structure for
+    // motion_type so sorting "in the same way" is intuitive.
     const m = lookupMotion(row.department, row.calendar_matter);
-    return [m.type || '', m.subtype || ''];
+    return [rowCategory(row) || '', m.type || ''];
   }
   if (col === 'outcome') {
     const o = lookupOutcome(splitRuling(row.ruling, row.department).ruling);
@@ -1876,9 +2042,11 @@ const COLUMN_DEFS = [
   // Motion category sits between Motion Type and Outcome — a sortable,
   // filterable column showing the coarse-grained bucket (Discovery,
   // Dispositive, Pleadings, Injunctive, Post-Trial, Real Estate, etc.)
-  // that the auto-classified motion type rolls up into. Replaces the
-  // older 🔍 Discovery badge.
-  { key: 'motion_category', cls: 'col-mcat',         label: 'Category' },
+  // that the auto-classified motion type rolls up into. Default-hidden
+  // because the inline glyph next to Motion Type already conveys the
+  // category at a glance; the column is here for users who want to
+  // sort or filter on it explicitly.
+  { key: 'motion_category', cls: 'col-mcat',         label: 'Category', defaultHidden: true },
   { key: 'motion_type',     cls: 'col-mtype',        label: 'Motion Type' },
   { key: 'outcome',         cls: 'col-outcome',      label: 'Outcome' },
   { key: 'calendar_matter', cls: 'col-motion',       label: 'Motion Caption' },
@@ -2806,7 +2974,7 @@ async function classifyAll() {
   for (const r of all) {
     const dept = r.department || '';
     const cm   = r.calendar_matter || '';
-    const cls  = classifyMotion(cm, dept);
+    const cls  = classifyMotion(cm);
     let inner = MTYPE_CACHE.get(dept);
     if (!inner) { inner = new Map(); MTYPE_CACHE.set(dept, inner); }
     inner.set(cm, cls);
@@ -2833,8 +3001,12 @@ async function classifyAll() {
 }
 
 function lookupMotion(dept, cm) {
+  // The cache is keyed by (dept, calendar_matter) for fast lookup of
+  // prebucketed rows; if a row isn't in the cache we re-classify
+  // dept-agnostically so two depts with the same caption land on the
+  // same motion type.
   const inner = MTYPE_CACHE.get(dept || '');
-  return (inner && inner.get(cm || '')) || classifyMotion(cm || '', dept);
+  return (inner && inner.get(cm || '')) || classifyMotion(cm || '');
 }
 
 // ─── Filtering ───────────────────────────────────────────────────────────────
@@ -2954,26 +3126,29 @@ function columnFiltersToSql() {
     // SQL doesn't see them, so the filter happens in columnFilterMatches.
     if (col === 'outcome' || col === 'motion_category' || col === 'officer_type') continue;
     if (col === 'motion_type') {
-      // Resolve selected types → calendar_matters via MTYPE_CACHE.
-      // Hierarchical: a parent value matches every (type) entry; a
-      // "type → sub" composite matches only entries whose subtype
-      // also matches.
+      // Resolve selected categories / types → calendar_matters via
+      // MTYPE_CACHE. Hierarchical: a parent value (a Category like
+      // "Discovery") matches every type that rolls up into it; a
+      // "Cat → Type" composite matches only that specific motion type
+      // within that category.
       const cms = new Set();
-      const parents = new Set();
-      const subPairs = [];  // [type, sub]
+      const parentCats = new Set();   // Categories selected at the parent level
+      const subPairs   = [];          // [category, type]
       for (const v of set) {
         if (v.includes(SUB_SEPARATOR)) {
           const { main, sub } = splitMainSub(v);
           subPairs.push([main, sub]);
         } else {
-          parents.add(v);
+          parentCats.add(v);
         }
       }
       for (const inner of MTYPE_CACHE.values()) {
         for (const [cm, cls] of inner) {
-          if (parents.has(cls.type)) { cms.add(cm); continue; }
-          for (const [t, s] of subPairs) {
-            if (cls.type === t && (cls.subtype || '') === s) { cms.add(cm); break; }
+          const t = cls.type || '';
+          const c = motionCategory(t);
+          if (parentCats.has(c)) { cms.add(cm); continue; }
+          for (const [pc, pt] of subPairs) {
+            if (c === pc && t === pt) { cms.add(cm); break; }
           }
         }
       }
@@ -3302,7 +3477,7 @@ function renderTable(data) {
       <td class="col-case">${caseNumberLink(r.case_number)}</td>
       <td class="col-title">${r.case_title ? `<span class="case-title-link" data-cn="${esc(r.case_number || '')}" title="See all tentatives for this case">${esc(r.case_title)}</span>` : ''}</td>
       <td class="col-mcat"><span class="mcat-pill ${catClass}">${esc(cat)}</span></td>
-      <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
+      <td class="col-mtype"><span class="mcat-glyph ${catClass}" title="Category: ${esc(cat)}">${esc(categoryGlyph(cat))}</span><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
       <td class="col-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome)}</span>${oSub}</td>
       <td class="col-motion">${esc(r.calendar_matter)}</td>
       <td class="col-judge">${judgeCell}</td>
@@ -4118,35 +4293,39 @@ async function uniqueValuesFor(col) {
     const counts = new Map();
     for (const r of cmCounts) {
       const cls = lookupMotion(r.department, r.calendar_matter);
-      const key = String(r.department) === '301' ? 'Discovery' : motionCategory(cls.type);
+      const key = motionCategory(cls.type);
       counts.set(key, (counts.get(key) || 0) + Number(r.n));
     }
     pairs = [...counts.entries()].map(([v, n]) => ({ value: v, count: n }));
   } else if (col === 'motion_type') {
-    // Two-level: each motion type, with its motion subtypes nested
-    // immediately beneath. The user can check a parent (matches every
-    // subtype under it) or a specific child ("Compel Discovery →
-    // Production"). Children get `child: true` + a `parent` pointer
-    // so the popup renderer indents them under the right parent.
+    // Two-level: each Motion Category as parent, with the Motion Types
+    // that roll up into that category nested beneath. The user can
+    // check a parent (matches every type under it) or a specific child
+    // ("Discovery → Compel Discovery"). Children get `child: true` +
+    // a `parent` pointer so the popup renderer indents them under
+    // the right parent. The motion-subtype layer (e.g. Compel Discovery
+    // → Production) doesn't appear here — it's available through
+    // "+ Add filter" → "Motion Subtype" for users who need it.
     const cmCounts = (await conn.query(
       `SELECT department, calendar_matter, COUNT(*) n FROM data
        GROUP BY department, calendar_matter`)).toArray();
-    const byType = new Map();  // type → { count, subs: Map<sub,count> }
+    const byCat = new Map(); // cat → { count, types: Map<type,count> }
     for (const r of cmCounts) {
       const cls = lookupMotion(r.department, r.calendar_matter);
-      const t = cls.type, s = cls.subtype || '';
-      let bucket = byType.get(t);
-      if (!bucket) { bucket = { count: 0, subs: new Map() }; byType.set(t, bucket); }
+      const t = cls.type || '';
+      const c = motionCategory(t);
+      let bucket = byCat.get(c);
+      if (!bucket) { bucket = { count: 0, types: new Map() }; byCat.set(c, bucket); }
       bucket.count += Number(r.n);
-      if (s) bucket.subs.set(s, (bucket.subs.get(s) || 0) + Number(r.n));
+      if (t) bucket.types.set(t, (bucket.types.get(t) || 0) + Number(r.n));
     }
     pairs = [];
-    const sortedTypes = [...byType.entries()].sort((a, b) => b[1].count - a[1].count);
-    for (const [t, info] of sortedTypes) {
-      pairs.push({ value: t, count: info.count });
-      const subs = [...info.subs.entries()].sort((a, b) => b[1] - a[1]);
-      for (const [s, c] of subs) {
-        pairs.push({ value: combineMainSub(t, s), count: c, parent: t, sub: s, child: true });
+    const sortedCats = [...byCat.entries()].sort((a, b) => b[1].count - a[1].count);
+    for (const [c, info] of sortedCats) {
+      pairs.push({ value: c, count: info.count });
+      const types = [...info.types.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [t, n] of types) {
+        pairs.push({ value: combineMainSub(c, t), count: n, parent: c, sub: t, child: true });
       }
     }
   } else if (col === 'officer_type') {
