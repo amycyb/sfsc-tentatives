@@ -10,15 +10,15 @@
     {
       "department": "301",
       "name": "Department 301",
-      "rulings": 351,
-      "size_bytes": 98710,
+      "rulings": 712,
+      "size_bytes": 195561,
       "latest": "2026-04-02"
     },
     {
       "department": "302",
       "name": "Department 302 \u2014 Civil Law & Motion",
       "rulings": 60473,
-      "size_bytes": 14049294,
+      "size_bytes": 14049259,
       "latest": "2026-05-04"
     },
     {
