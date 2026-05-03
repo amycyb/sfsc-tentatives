@@ -1149,6 +1149,7 @@ const mtypeEl   = $('mtype'),   msubEl    = $('msub'), msubChip = $('msub-chip')
 // initialization". Two-level so departments can disagree on classification of
 // the same calendar_matter string without one stomping the other.
 const MTYPE_CACHE = new Map(); // dept -> Map(calendar_matter -> {type, subtype})
+const _colUniqueCache = new Map(); // column -> [{value, count}]; busted on load/unload
 
 // Custom filters added via "+ Add filter".
 let customFilters = []; // [{id, col, op, value}]
@@ -2663,7 +2664,6 @@ function outcomeFilterMatches(row) {
 // Uniques are computed lazily and cached per column for the lifetime of the
 // loaded dataset. Cache is busted whenever the loaded department set changes
 // (see onLoadedSetChanged → invalidateColumnFilterCache).
-const _colUniqueCache = new Map();
 function invalidateColumnFilterCache() { _colUniqueCache.clear(); }
 
 async function uniqueValuesFor(col) {
