@@ -110,13 +110,14 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 39,678 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 4 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 39,678 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 5 gaps</summary>
 
 39,678 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
 
-### Gaps (4)
+### Gaps (5)
 
-- 2021-06-24 → 2021-09-03
+- 2021-07-09
+- 2021-07-16 → 2021-09-03
 - 2021-11-01 → 2022-01-19
 - 2022-08-15 → 2022-08-16
 - 2022-08-31 → 2022-09-01
@@ -134,14 +135,14 @@ python update-readme.py
 - 2022-11-28 → 2022-12-27
 - 2023-03-14 → 2023-06-02
 - 2023-06-14
-- 2023-07-13 → 2024-08-12
+- 2023-08-14 → 2024-08-12
 - 2024-10-08
 
 </details>
 <details>
-<summary><strong>Department 302 — Civil Law & Motion</strong> &nbsp;·&nbsp; 60,473 rulings &nbsp;·&nbsp; Earliest: 2014-01-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 0 gaps</summary>
+<summary><strong>Department 302 — Civil Law & Motion</strong> &nbsp;·&nbsp; 60,472 rulings &nbsp;·&nbsp; Earliest: 2014-01-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 0 gaps</summary>
 
-60,473 tentative rulings. Earliest: 2014-01-01. Latest: 2026-05-04.
+60,472 tentative rulings. Earliest: 2014-01-01. Latest: 2026-05-04.
 
 ### Gaps (0)
 
@@ -149,12 +150,14 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,041 rulings &nbsp;·&nbsp; Earliest: 2019-11-05 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,296 rulings &nbsp;·&nbsp; Earliest: 2019-07-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 3 gaps</summary>
 
-15,041 tentative rulings. Earliest: 2019-11-05. Latest: 2026-05-04.
+15,296 tentative rulings. Earliest: 2019-07-01. Latest: 2026-05-04.
 
-### Gaps (1)
+### Gaps (3)
 
-- 2019-11-13 → 2019-12-31
+- 2019-08-06 → 2019-11-04
+- 2019-11-13 → 2019-12-03
+- 2019-12-12 → 2019-12-16
 
 </details>
