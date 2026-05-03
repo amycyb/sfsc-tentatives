@@ -135,19 +135,20 @@ python update-readme.py
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 3,023 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 269 hearing days &nbsp;·&nbsp; 5 gaps</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 3,023 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 269 hearing days &nbsp;·&nbsp; 6 gaps</summary>
 
 3,023 tentative rulings across 269 hearing days (2024-03-19 → 2026-05-04).
 
 ### Coverage
 
 - **Hearing days with data:** 269 of 522 weekdays in range (51.5%)
-- **Days scanned:** 974 (including days the court posted no rulings)
-- **Earliest harvested:** 2022-02-02
+- **Days scanned:** 977 (including days the court posted no rulings)
+- **Earliest harvested:** 2017-10-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (5)
+### Gaps (6)
 
+- 2017-10-05 → 2022-02-01
 - 2022-12-27
 - 2023-03-14 → 2023-06-01
 - 2023-10-05
@@ -190,19 +191,19 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 17,880 rulings &nbsp;·&nbsp; 2018-01-02 → 2026-05-04 &nbsp;·&nbsp; 1,738 hearing days &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 17,925 rulings &nbsp;·&nbsp; 2017-08-07 → 2026-05-04 &nbsp;·&nbsp; 1,745 hearing days &nbsp;·&nbsp; 1 gap</summary>
 
-17,880 tentative rulings across 1,738 hearing days (2018-01-02 → 2026-05-04).
+17,925 tentative rulings across 1,745 hearing days (2017-08-07 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 1,738 of 2,050 weekdays in range (84.8%)
-- **Days scanned:** 2,037 (including days the court posted no rulings)
-- **Earliest harvested:** 2018-01-02 (same as first hearing day)
+- **Hearing days with data:** 1,745 of 2,149 weekdays in range (81.2%)
+- **Days scanned:** 2,057 (including days the court posted no rulings)
+- **Earliest harvested:** 2017-08-07 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
 ### Gaps (1)
 
-- 2018-02-07 → 2018-02-28
+- 2017-08-16 → 2017-12-29
 
 </details>

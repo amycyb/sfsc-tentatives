@@ -18,7 +18,7 @@
       "department": "302",
       "name": "Department 302 \u2014 Civil Law and Motion",
       "rulings": 60472,
-      "size_bytes": 14052975,
+      "size_bytes": 14052960,
       "latest": "2026-05-04"
     },
     {
@@ -31,8 +31,8 @@
     {
       "department": "501",
       "name": "Department 501 \u2014 Real Property Court",
-      "rulings": 17880,
-      "size_bytes": 2599286,
+      "rulings": 17925,
+      "size_bytes": 2600719,
       "latest": "2026-05-04"
     }
   ]
