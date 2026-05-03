@@ -559,6 +559,12 @@ $('bulk-btn').addEventListener('click', async () => {
     }
   }
 
+  // Apply the same direction radio used by Scan Unscanned Pages — without this
+  // the manual range button silently ignored the toggle and always walked
+  // oldest-first, even after the user picked "Backward (newest first)".
+  const direction = getScanDirection();
+  if (direction === 'backward') dates = [...dates].reverse();
+
   const settings = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
 
   $('bulk-btn').disabled = true;
@@ -566,7 +572,8 @@ $('bulk-btn').addEventListener('click', async () => {
   $('bulk-resume').style.display = 'none';
   $('send-btn').disabled = true;
   const skipNote = skippedCount ? ` (skipping ${skippedCount} already scanned)` : '';
-  setStatus(`Starting background scrape of ${dates.length} dates${skipNote}…`, 'loading');
+  const dirNote = direction === 'backward' ? ', newest-first' : ', oldest-first';
+  setStatus(`Starting background scrape of ${dates.length} dates${dirNote}${skipNote}…`, 'loading');
 
   chrome.runtime.sendMessage(
     { action: 'start-bulk', payload: { dates, tabId: tab.id, settings, waitMs } },
