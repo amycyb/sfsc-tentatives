@@ -111,6 +111,26 @@
       z-index: 50; padding: 0.35rem 0;
     }
     .dl-menu.open { display: block; }
+    .cols-wrap { position: relative; display: inline-block; }
+    .cols-menu {
+      display: none; position: absolute; right: 0; top: calc(100% + 4px);
+      background: white; color: #222;
+      border: 1px solid #c2ccd9; border-radius: 5px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      min-width: 200px;
+      z-index: 50; padding: 0.35rem 0;
+    }
+    .cols-menu.open { display: block; }
+    .cols-menu label {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.3rem 0.75rem; font-size: 0.78rem; cursor: pointer;
+      color: #1a3a5c;
+    }
+    .cols-menu label:hover { background: #f0f4fa; }
+    .cols-menu input[type=checkbox] { margin: 0; }
+    .cols-menu .cols-sep {
+      border-top: 1px solid #eef0f4; margin: 0.3rem 0;
+    }
     .dl-menu .dl-empty {
       padding: 0.6rem 0.85rem; font-size: 0.78rem;
       color: #888; font-style: italic;
@@ -464,7 +484,14 @@
     .col-mtype   { width: 200px; }
     .col-outcome { width: 130px; }
     .col-judge   { width: 165px; }
+    .col-is-examiner { width: 90px; text-align: center; font-size: 0.78rem; color: #6b5300; }
     .col-ruling  { color: #666; }
+    .col-hidden  { display: none !important; }
+    .examiner-badge {
+      display: inline-block; margin-left: 0.3rem; cursor: help;
+      font-size: 0.78em; vertical-align: 1px; opacity: 0.75;
+    }
+    .examiner-badge:hover { opacity: 1; }
     .mtype-pill {
       display: inline-block; padding: 1px 6px;
       background: #eef3fb; border: 1px solid #ccd6e6;
@@ -602,6 +629,10 @@
       <div class="dl-menu" id="dl-menu" role="menu" aria-label="Database Downloads"></div>
     </span>
     <button class="hbtn" id="charts-btn" title="Show charts" data-tip-pos="below" data-tip="Show or hide the charts panel. Charts respect every filter you've set.">📊 Charts</button>
+    <span class="cols-wrap">
+      <button class="hbtn" id="cols-btn" title="Show / hide table columns" data-tip-pos="below" data-tip="Pick which columns to show in the results table. Your selection is remembered.">🧰 Columns ▾</button>
+      <div class="cols-menu" id="cols-menu" role="menu" aria-label="Column visibility"></div>
+    </span>
     <button class="hbtn" id="advanced-btn" title="Add custom filter" data-tip-pos="below" data-tip="Open the advanced-filter builder to combine conditions across any column (motion type, judge, outcome, ruling text, dates, etc.).">+ Filter</button>
     <button class="hbtn" id="export-btn" data-tip-pos="below" data-tip="Download the current filtered view as a CSV file. Opens in Excel or Google Sheets.">⬇ CSV</button>
     <button class="hbtn" id="tips-toggle" data-tip-pos="below" data-tip="Toggle tooltips: hover any button or field to see what it does.">? Tips</button>
@@ -718,7 +749,10 @@
           <span class="col-head"><span class="col-label">Motion Caption</span></span>
         </th>
         <th class="col-judge   sortable" data-col="judge">
-          <span class="col-head"><span class="col-label">Judge</span><button class="col-filter-btn" data-filter-col="judge" data-filter-kind="value" title="Filter by Judge">▾</button></span>
+          <span class="col-head"><span class="col-label">Judge / Examiner</span><button class="col-filter-btn" data-filter-col="judge" data-filter-kind="value" title="Filter by Judge / Examiner">▾</button></span>
+        </th>
+        <th class="col-is-examiner">
+          <span class="col-head"><span class="col-label">Examiner?</span></span>
         </th>
         <th class="col-ruling">
           <span class="col-head"><span class="col-label">Ruling (excerpt)</span></span>
@@ -1150,6 +1184,69 @@ const mtypeEl   = $('mtype'),   msubEl    = $('msub'), msubChip = $('msub-chip')
 // the same calendar_matter string without one stomping the other.
 const MTYPE_CACHE = new Map(); // dept -> Map(calendar_matter -> {type, subtype})
 const _colUniqueCache = new Map(); // column -> [{value, count}]; busted on load/unload
+
+// Departments where the assigned reviewer is a court Examiner rather than a
+// judge. Drives the 📋 badge in the Judge column and the derived "Examiner?"
+// column. Add new departments here as the data ingest covers them.
+const EXAMINER_DEPTS = new Set(['204']);
+function isExaminer(row) {
+  return !!row && !!row.judge && EXAMINER_DEPTS.has(String(row.department));
+}
+
+// ─── Column visibility ──────────────────────────────────────────────────────
+// Each entry maps a logical column key to the CSS class shared by its <th>
+// and every matching <td>. `defaultHidden: true` keeps a column off by
+// default; the user can toggle any column on/off via the 🧰 Columns menu.
+// Selection is persisted in localStorage so it survives reloads.
+const COLUMN_DEFS = [
+  { key: 'department',      cls: 'col-dept',         label: 'Dept' },
+  { key: 'court_date',      cls: 'col-date',         label: 'Date' },
+  { key: 'hearing_time',    cls: 'col-time',         label: 'Time' },
+  { key: 'case_number',     cls: 'col-case',         label: 'Case #' },
+  { key: 'case_title',      cls: 'col-title',        label: 'Case Title' },
+  { key: 'motion_type',     cls: 'col-mtype',        label: 'Motion Type' },
+  { key: 'outcome',         cls: 'col-outcome',      label: 'Outcome' },
+  { key: 'calendar_matter', cls: 'col-motion',       label: 'Motion Caption' },
+  { key: 'judge',           cls: 'col-judge',        label: 'Judge / Examiner' },
+  { key: 'is_examiner',     cls: 'col-is-examiner',  label: 'Examiner? (column)', defaultHidden: true },
+  { key: 'ruling',          cls: 'col-ruling',       label: 'Ruling (excerpt)' },
+];
+const COL_VIS_LS_KEY = 'sfsc.columnVisibility';
+const colVisibility = (() => {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(COL_VIS_LS_KEY) || '{}') || {}; }
+  catch { saved = {}; }
+  const out = {};
+  for (const c of COLUMN_DEFS) {
+    out[c.key] = saved[c.key] !== undefined ? !!saved[c.key] : !c.defaultHidden;
+  }
+  return out;
+})();
+function persistColVisibility() {
+  try { localStorage.setItem(COL_VIS_LS_KEY, JSON.stringify(colVisibility)); } catch {}
+}
+function applyColVisibility() {
+  for (const c of COLUMN_DEFS) {
+    const hidden = !colVisibility[c.key];
+    document.querySelectorAll(`#grid .${c.cls}`).forEach(el => {
+      el.classList.toggle('col-hidden', hidden);
+    });
+  }
+}
+function renderColsMenu() {
+  const menu = document.getElementById('cols-menu');
+  if (!menu) return;
+  menu.innerHTML = COLUMN_DEFS.map(c =>
+    `<label><input type="checkbox" data-col-key="${c.key}"${colVisibility[c.key] ? ' checked' : ''}> ${c.label}</label>`
+  ).join('');
+  menu.querySelectorAll('input[type=checkbox]').forEach(input => {
+    input.addEventListener('change', () => {
+      colVisibility[input.dataset.colKey] = input.checked;
+      persistColVisibility();
+      applyColVisibility();
+    });
+  });
+}
 
 // Custom filters added via "+ Add filter".
 let customFilters = []; // [{id, col, op, value}]
@@ -1587,6 +1684,23 @@ $('empty-open-dl').addEventListener('click', () => {
   $('dl-btn').classList.add('active');
 });
 
+// Columns visibility menu — mirrors the dl-menu open/close pattern.
+renderColsMenu();
+applyColVisibility();
+$('cols-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const menu = $('cols-menu');
+  const open = menu.classList.toggle('open');
+  $('cols-btn').classList.toggle('active', open);
+});
+document.addEventListener('click', e => {
+  const menu = $('cols-menu');
+  if (!menu.classList.contains('open')) return;
+  if (e.target.closest('.cols-wrap')) return;
+  menu.classList.remove('open');
+  $('cols-btn').classList.remove('active');
+});
+
 // ─── Categorisation ──────────────────────────────────────────────────────────
 // Populates MTYPE_CACHE once per page load. The dropdown's frequency labels
 // reflect parquet-wide counts; per-row tagging at render time reads the cache.
@@ -1880,7 +1994,7 @@ function outcomeClass(outcome) {
 function renderTable(data) {
   const tbody = $('tbody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="no-data">No rulings match your filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="no-data">No rulings match your filters.</td></tr>';
     return;
   }
   tbody.innerHTML = data.map((r, i) => {
@@ -1888,6 +2002,10 @@ function renderTable(data) {
     const sub = m.subtype ? `<div class="mtype-sub">${esc(m.subtype)}</div>` : '';
     const o = lookupOutcome(splitRuling(r.ruling, r.department).ruling);
     const oSub = o.subtype ? `<div class="mtype-sub">${esc(o.subtype)}</div>` : '';
+    const examiner = isExaminer(r);
+    const judgeCell = r.judge
+      ? `${esc(r.judge)}${examiner ? '<span class="examiner-badge" title="Examiner (not a judge) — Probate matters are reviewed by court examiners.">📋</span>' : ''}`
+      : '';
     return `<tr data-idx="${i}">
       <td class="col-dept">${esc(r.department)}</td>
       <td class="col-date">${r.court_date ?? ''}</td>
@@ -1897,7 +2015,8 @@ function renderTable(data) {
       <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
       <td class="col-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome)}</span>${oSub}</td>
       <td class="col-motion">${esc(r.calendar_matter)}</td>
-      <td class="col-judge">${esc(r.judge)}</td>
+      <td class="col-judge">${judgeCell}</td>
+      <td class="col-is-examiner">${examiner ? '✓' : ''}</td>
       <td class="col-ruling">${esc((splitRuling(r.ruling, r.department).ruling).slice(0, 140))}</td>
     </tr>`;
   }).join('');
@@ -1905,6 +2024,7 @@ function renderTable(data) {
   tbody.querySelectorAll('tr').forEach(tr =>
     tr.addEventListener('click', () => openModal(window._rows[+tr.dataset.idx]))
   );
+  applyColVisibility();
 }
 
 function renderPager(total, page) {
