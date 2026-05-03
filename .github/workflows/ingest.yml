@@ -66,83 +66,105 @@ jobs:
           git fetch origin master
           git checkout FETCH_HEAD
 
-          # Throttle gate: if a bot commit landed in the last
-          # THROTTLE_SECONDS, exit fast — the previous run already
-          # processed whatever just got pushed, and the next queued run
-          # after the gate clears will pick up anything else.
-          # workflow_dispatch (manual --all-raw repair) bypasses the gate.
+          # Throttle gate now scopes to the EXPENSIVE parquet ingest only.
+          # The cheap coverage / README regeneration always runs so empty-
+          # marker files (and any other ruling-less raw scrape) propagate
+          # into coverage.json without waiting for the throttle window.
+          # Without this, a continuous bulk scrape leaves coverage.json
+          # perpetually behind by however long the scrape lasts — the
+          # data browser then shows phantom "gaps" for dates that already
+          # have raw files. The throttle still keeps a 50-file burst from
+          # spawning 50 full ingest passes; it just doesn't lock the
+          # cheap step out.
+          RUN_INGEST=true
           if [ "$MODE" != "all-raw" ]; then
             LAST_BOT_TS=$(git log --author='github-actions\[bot\]' --pretty=format:%ct -1 -- tentatives.parquet)
             if [ -n "$LAST_BOT_TS" ]; then
               NOW=$(date +%s)
               ELAPSED=$((NOW - LAST_BOT_TS))
               if [ "$ELAPSED" -lt "$THROTTLE_SECONDS" ]; then
-                echo "Throttled — last bot commit was ${ELAPSED}s ago (window: ${THROTTLE_SECONDS}s). Skipping."
-                exit 0
+                echo "Throttled — last parquet ingest was ${ELAPSED}s ago (window: ${THROTTLE_SECONDS}s). Skipping the parquet pass; coverage will still refresh."
+                RUN_INGEST=false
               fi
             fi
           fi
 
-          if [ "$MODE" = "all-raw" ]; then
-            echo "Catch-up mode: re-ingesting every raw/dept*/*.json"
-            python3 ingest.py --all-raw
-          else
-            # Find every raw JSON added or modified since the last bot
-            # commit. This catches up "stranded" files left behind by a
-            # cancelled or failed previous run — the next push always
-            # re-discovers them via the same diff.
-            LAST_BOT=$(git log --author='github-actions\[bot\]' --pretty=format:%H -1 -- tentatives.parquet)
-
-            if [ -z "$LAST_BOT" ]; then
-              # No prior bot commit (first run after this workflow lands).
-              # Falling all the way back to --all-raw guarantees we don't
-              # miss anything historic.
-              echo "No prior bot commit found — running --all-raw."
+          if [ "$RUN_INGEST" = "true" ]; then
+            if [ "$MODE" = "all-raw" ]; then
+              echo "Catch-up mode: re-ingesting every raw/dept*/*.json"
               python3 ingest.py --all-raw
             else
-              echo "Diffing against last bot commit $LAST_BOT"
-              # --diff-filter=AM: only files that exist in HEAD (added or
-              # modified). Excludes deletions so we don't try to ingest
-              # a path that no longer exists.
-              NEW_FILES=$(git diff --name-only --diff-filter=AM "$LAST_BOT" HEAD -- 'raw/**/*.json' 'raw/*.json')
+              # Find every raw JSON added or modified since the last bot
+              # commit. This catches up "stranded" files left behind by a
+              # cancelled or failed previous run — the next push always
+              # re-discovers them via the same diff.
+              LAST_BOT=$(git log --author='github-actions\[bot\]' --pretty=format:%H -1 -- tentatives.parquet)
 
-              if [ -z "$NEW_FILES" ]; then
-                echo "No new raw JSON files since last bot commit."
-                exit 0
+              if [ -z "$LAST_BOT" ]; then
+                # No prior bot commit (first run after this workflow lands).
+                # Falling all the way back to --all-raw guarantees we don't
+                # miss anything historic.
+                echo "No prior bot commit found — running --all-raw."
+                python3 ingest.py --all-raw
+              else
+                echo "Diffing against last bot commit $LAST_BOT"
+                # --diff-filter=AM: only files that exist in HEAD (added or
+                # modified). Excludes deletions so we don't try to ingest
+                # a path that no longer exists.
+                NEW_FILES=$(git diff --name-only --diff-filter=AM "$LAST_BOT" HEAD -- 'raw/**/*.json' 'raw/*.json')
+
+                if [ -z "$NEW_FILES" ]; then
+                  echo "No new raw JSON files since last bot commit."
+                else
+                  # Filter out files that vanished from the working tree.
+                  EXISTING_FILES=""
+                  for f in $NEW_FILES; do
+                    [ -f "$f" ] && EXISTING_FILES="$EXISTING_FILES $f"
+                  done
+                  if [ -z "$EXISTING_FILES" ]; then
+                    echo "All diffed files have vanished from the working tree."
+                  else
+                    FILE_COUNT=$(echo $EXISTING_FILES | wc -w)
+                    echo "Batch-ingesting $FILE_COUNT file(s) in one merge:"
+                    echo "$EXISTING_FILES" | tr ' ' '\n' | head -50
+                    [ "$FILE_COUNT" -gt 50 ] && echo "  … and $((FILE_COUNT - 50)) more"
+                    # Each file's JSON wrapper carries its own department so
+                    # --dept is just a fallback for malformed scrapes. One
+                    # invocation does one batched merge instead of N
+                    # quadratic-merge calls.
+                    python3 ingest.py $EXISTING_FILES
+                  fi
+                fi
               fi
-
-              # Filter out files that vanished from the working tree.
-              EXISTING_FILES=""
-              for f in $NEW_FILES; do
-                [ -f "$f" ] && EXISTING_FILES="$EXISTING_FILES $f"
-              done
-              if [ -z "$EXISTING_FILES" ]; then
-                echo "All diffed files have vanished from the working tree."
-                exit 0
-              fi
-
-              FILE_COUNT=$(echo $EXISTING_FILES | wc -w)
-              echo "Batch-ingesting $FILE_COUNT file(s) in one merge:"
-              echo "$EXISTING_FILES" | tr ' ' '\n' | head -50
-              [ "$FILE_COUNT" -gt 50 ] && echo "  … and $((FILE_COUNT - 50)) more"
-              # Each file's JSON wrapper carries its own department so
-              # --dept is just a fallback for malformed scrapes. One
-              # invocation does one batched merge instead of N
-              # quadratic-merge calls.
-              python3 ingest.py $EXISTING_FILES
             fi
           fi
 
+          # Always run — even on the throttled path. update-readme.py
+          # rebuilds coverage/dept<N>.json + the per-dept parquet slices
+          # + the dept summary table from the union of (parquet rows ∪
+          # raw filenames). New raw files reach the data browser and the
+          # extension's "already scanned" set in seconds rather than
+          # waiting for the throttle gate to clear.
           python3 update-readme.py
 
           git add tentatives.parquet README.md coverage data
 
           if git diff --staged --quiet; then
-            echo "All rows already present – no parquet changes."
+            echo "No changes to commit."
             exit 0
           fi
 
-          git commit -m "Update tentatives.parquet [skip ci]"
+          # Commit message reflects the actual scope: a coverage-only
+          # refresh shouldn't be filed as a parquet update (the throttle
+          # gate keys on parquet-touching commits, so mislabelling a
+          # coverage refresh as a parquet ingest would push the throttle
+          # window forward and starve subsequent real ingests).
+          if git diff --staged --name-only | grep -qx tentatives.parquet; then
+            COMMIT_MSG="Update tentatives.parquet [skip ci]"
+          else
+            COMMIT_MSG="Refresh coverage [skip ci]"
+          fi
+          git commit -m "$COMMIT_MSG"
 
           # Push, retrying on transient race conditions (e.g. a human
           # commit landed while we were ingesting). Rebase between
