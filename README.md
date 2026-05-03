@@ -82,12 +82,12 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary>**Department 501 — Real Property Court** &nbsp;·&nbsp; 7,454 rulings &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
+<summary>**Department 501 — Real Property Court** &nbsp;·&nbsp; 8,017 rulings &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
 
-7,454 tentative rulings. Latest: 2026-05-04.
+8,017 tentative rulings. Latest: 2026-05-04.
 
 ### Gaps (1)
 
-- 2023-05-10 → 2023-12-29
+- 2023-08-04 → 2023-12-29
 
 </details>
