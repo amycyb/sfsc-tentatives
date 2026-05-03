@@ -135,24 +135,25 @@ python update-readme.py
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 3,023 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 269 hearing days &nbsp;·&nbsp; 6 gaps</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 3,023 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 269 hearing days &nbsp;·&nbsp; 7 gaps</summary>
 
 3,023 tentative rulings across 269 hearing days (2024-03-19 → 2026-05-04).
 
 ### Coverage
 
 - **Hearing days with data:** 269 of 522 weekdays in range (51.5%)
-- **Days scanned:** 888 (including days the court posted no rulings)
+- **Days scanned:** 936 (including days the court posted no rulings)
 - **Earliest harvested:** 2022-02-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (6)
+### Gaps (7)
 
-- 2022-11-18 → 2022-11-22
-- 2022-11-28 → 2022-12-27
+- 2022-12-27
 - 2023-03-14 → 2023-06-02
 - 2023-06-14
-- 2023-08-14 → 2023-11-27
+- 2023-08-14 → 2023-10-03
+- 2023-10-05
+- 2023-11-13 → 2023-11-27
 - 2023-12-28 → 2023-12-29
 
 </details>
@@ -174,37 +175,43 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 304 — Asbestos Law and Motion/Discovery</strong> &nbsp;·&nbsp; 56 rulings &nbsp;·&nbsp; 2025-04-08 → 2025-06-03 &nbsp;·&nbsp; 9 hearing days &nbsp;·&nbsp; 0 gaps</summary>
+<summary><strong>Department 304 — Asbestos Law and Motion/Discovery</strong> &nbsp;·&nbsp; 56 rulings &nbsp;·&nbsp; 2025-04-08 → 2025-06-03 &nbsp;·&nbsp; 9 hearing days &nbsp;·&nbsp; 1 gap</summary>
 
 56 tentative rulings across 9 hearing days (2025-04-08 → 2025-06-03).
 
 ### Coverage
 
 - **Hearing days with data:** 9 of 40 weekdays in range (22.5%)
-- **Days scanned:** 47 (including days the court posted no rulings)
+- **Days scanned:** 49 (including days the court posted no rulings)
 - **Earliest harvested:** 2025-04-08 (same as first hearing day)
-- **Latest harvested:** 2025-06-12
+- **Latest harvested:** 2026-05-01
 
-### Gaps (0)
+### Gaps (1)
 
-_None — all weekdays in range are accounted for._
+- 2025-06-16 → 2026-04-30
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,832 rulings &nbsp;·&nbsp; 2019-07-01 → 2026-05-04 &nbsp;·&nbsp; 1,506 hearing days &nbsp;·&nbsp; 2 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 16,803 rulings &nbsp;·&nbsp; 2018-03-01 → 2026-05-04 &nbsp;·&nbsp; 1,615 hearing days &nbsp;·&nbsp; 8 gaps</summary>
 
-15,832 tentative rulings across 1,506 hearing days (2019-07-01 → 2026-05-04).
+16,803 tentative rulings across 1,615 hearing days (2018-03-01 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 1,506 of 1,682 weekdays in range (89.5%)
-- **Days scanned:** 1,777 (including days the court posted no rulings)
-- **Earliest harvested:** 2019-01-02
+- **Hearing days with data:** 1,615 of 2,012 weekdays in range (80.3%)
+- **Days scanned:** 1,861 (including days the court posted no rulings)
+- **Earliest harvested:** 2018-03-01 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (2)
+### Gaps (8)
 
-- 2019-01-07 → 2019-02-13
-- 2019-02-25
+- 2018-03-23 → 2018-06-05
+- 2018-08-06 → 2018-10-15
+- 2018-10-22 → 2018-11-08
+- 2018-11-14 → 2018-12-03
+- 2018-12-14 → 2018-12-31
+- 2019-01-07
+- 2019-01-09
+- 2019-01-11 → 2019-01-29
 
 </details>
