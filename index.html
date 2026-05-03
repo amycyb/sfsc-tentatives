@@ -493,6 +493,7 @@
     .col-date    { width: 95px; white-space: nowrap; }
     .col-time    { width: 65px; white-space: nowrap; }
     .col-case    { width: 110px; font-family: monospace; }
+    .col-prefix  { width: 70px;  font-family: monospace; text-align: center; color: #555; }
     .col-mcat    { width: 110px; }
     .col-mtype   { width: 200px; }
     .col-outcome { width: 130px; }
@@ -909,6 +910,9 @@
         <th class="col-case    sortable" data-col="case_number">
           <span class="col-head"><span class="col-label">Case #</span></span>
         </th>
+        <th class="col-prefix  sortable" data-col="case_prefix">
+          <span class="col-head"><span class="col-label">Prefix</span><button class="col-filter-btn" data-filter-col="case_prefix" data-filter-kind="value" title="Filter by case-number prefix">▾</button></span>
+        </th>
         <th class="col-title   sortable" data-col="case_title">
           <span class="col-head"><span class="col-label">Case Title</span><button class="col-filter-btn" data-filter-col="case_title" data-filter-kind="value" title="Filter by Case Title — search and tick">▾</button></span>
         </th>
@@ -1122,8 +1126,8 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\bsummary judgment\b|\bsummary adjudication\b|\bmsj\b/i.test(t),
     'Summary Judgment / Adjudication'],
   // Catch the typo'd / abbreviated forms ("Judgmnt", "Mtn for Judg.")
-  // that show up in the rough captions.
-  [t => /\bjudg?ment\s+on\s+the\s+pleadings\b/i.test(t), 'Judgment on the Pleadings'],
+  // and the singular "Pleading" (vs the canonical plural).
+  [t => /\bjudg(?:e?ment|mnt)\s+on\s+the\s+pleadings?\b/i.test(t), 'Judgment on the Pleadings'],
   [t => /\bcompel\s+arbitration\b/i.test(t), 'Compel Arbitration'],
   // Deem RFAs Admitted MUST come before the generic Compel rule below.
   // Discovery motions framed as "Motion to Compel Responses to RFAs and
@@ -1149,11 +1153,20 @@ const CIVIL_LAW_MOTION_RULES = [
   // examination-specific subtype wins.
   [t => /\b(?:mental|physical|independent\s+medical)\s+examination\b|\bime\b/i.test(t),
     'Compel Discovery', () => 'Mental / Medical Examination'],
+  // Discovery Referee appointment / report — a discovery-specific
+  // tooling motion (CCP § 639). Routes to Compel Discovery with a
+  // dedicated subtype so the popup nests it cleanly.
+  [t => /\bdiscovery\s+referee\b|\breport\s+of\s+(?:discovery\s+)?referee\b|\bappointing\s+(?:judge|referee)\b/i.test(t),
+    'Compel Discovery', () => 'Referee'],
   // Loosen "compel" to also catch the gerund / past-tense / plural —
   // captions like "Order Compelling Further Responses" used to fall
   // through to Miscellaneous because the original `\bcompel\b`
-  // required the bare verb form.
-  [t => /\bcompel(?:ling|s|led)?\b/i.test(t), 'Compel Discovery', compelSubtype],
+  // required the bare verb form. Also catch the bare "DISCOVERY"
+  // calendar headings and "Extending Discovery Cutoff" framings.
+  [t => /\bcompel(?:ling|s|led)?\b/i.test(t)
+     || /^\s*discovery\s*$/i.test(t)
+     || /\bdiscovery\s+cutoff\b|\breopening\s+(?:of\s+)?discovery\b/i.test(t),
+    'Compel Discovery', compelSubtype],
   // Quash matchers loosened to also catch the gerund form ("Order
   // Quashing Subpoena…") — the audit found ~60 captions in Misc that
   // used "quashing" instead of "quash" and the original rule didn't
@@ -1171,7 +1184,8 @@ const CIVIL_LAW_MOTION_RULES = [
   // 2031.060) and same disposition shape.
   [t => /\bprotective order\b/i.test(t)
      || /\b(?:de-?designation|re-?designation|confirm\s+designation)\s+of\b/i.test(t)
-     || /\bdesignat(?:e|ion|ed)\s+(?:of\s+)?(?:documents?|materials?|information)\s+as\s+(?:["']?confidential|highly\s+confidential)/i.test(t),
+     || /\bdesignat(?:e|ion|ed)\s+(?:of\s+)?(?:documents?|materials?|information)\s+as\s+(?:["']?confidential|highly\s+confidential)/i.test(t)
+     || /\bretain\s+confidentiality\b/i.test(t),
     'Protective Order'],
   // Disqualify counsel — separate motion from withdraw / substitute.
   // Excludes "disqualify judge / juror" (CCP § 170.6 challenges and the
@@ -1187,12 +1201,16 @@ const CIVIL_LAW_MOTION_RULES = [
      || /\bsubstit\s+atty\b/i.test(t),
     'Substitution of Attorney'],
   [t => /\bsanctions?\b/i.test(t), 'Sanctions'],
-  [t => /\battorney(?:'?s)?\s*fees?\b|\battorneys?\s*fees\b|\batty\s*fees?\b|\btax (?:memo of )?costs\b|\bstrike\s+memo\s+of\s+costs\b|\bmotion\s+(?:to|for)\s+strike\s+costs\b/i.test(t),
+  // Trailing apostrophe matters: "Attorneys' Fees" was missed by the
+  // earlier `(?:'?s)?` form because the apostrophe trailing the plural
+  // wasn't allowed for. Loosened to accept straight or curly
+  // apostrophes after the s.
+  [t => /\battorneys?[''']?\s*fees?\b|\batty\s*fees?\b|\btax\s+(?:memo\s+of\s+)?costs\b|\bstrike\s+memo\s+of\s+costs\b|\bmotion\s+(?:to|for)\s+strike\s+costs\b/i.test(t),
     'Attorney Fees / Costs'],
   [t => /\bpro hac vice\b/i.test(t), 'Pro Hac Vice'],
-  [t => /\brelieved as counsel\b|\bwithdraw(?:al)? (?:as|of) (?:attorney|counsel)\b|\bwithdraw as counsel\b/i.test(t),
+  [t => /\brelieve(?:d)?\s+as\s+(?:attorney|counsel)\b|\bwithdraw(?:al)?\s+(?:as|of)\s+(?:attorney|counsel)\b|\bwithdraw\s+as\s+counsel\b|\bmotion\s+to\s+be\s+relieved\b/i.test(t),
     'Counsel — Withdraw / Be Relieved'],
-  [t => /\bset aside\b.*\b(?:default|judgment|order|dismissal)\b|\bvacate\b.*\b(?:default|judgment|order|renewal)\b|\bleave to defend\b|\brelief\s+from\s+default\b/i.test(t),
+  [t => /\bset aside\b.*\b(?:default|judgment|order|dismissal)\b|\bvacate\b.*\b(?:default|judgment|order|renewal)\b|\bleave to defend\b|\brelief\s+from\s+default\b|\bmodify\s+(?:interlocutory\s+)?judgment\b|\bvacate\s+judg(?:e?ment|mnt)\b/i.test(t),
     'Set Aside / Vacate'],
   [t => /\bclaim of exemption\b/i.test(t), 'Claim of Exemption'],
   [t => /\bright to attach\b|\bwrit of attachment\b|\battach(?:ment)? order\b/i.test(t), 'Right to Attach'],
@@ -1251,10 +1269,16 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\bleave\s+to\s+(?:to\s+)?file\b|\bleave\s+to\s+amend\b|\bamend\s+complaint\b|\bfile\s+(?:an?\s+)?amended\b|\bleave\s+to\s+\S+\s+file\b/i.test(t),
     'Leave to Amend / File'],
   [t => /\bsale of dwelling\b|\bsale of (?:real )?property\b/i.test(t), 'Sale of Dwelling / Property'],
-  [t => /\bassignment of right\b|\bassignment order\b|\bassignment of rights\b/i.test(t), 'Assignment Order'],
+  [t => /\b(?:assignment|assigning)\s+(?:of\s+)?(?:rights?|order|sums\s+due|judgment\s+debtor)\b/i.test(t),
+    'Assignment Order'],
+  // Charging order — post-judgment collection against a debtor's
+  // partnership / LLC interest (CCP § 708.310, Corp Code § 16504).
+  [t => /\bcharging\s+(?:order|judgment\s+debtor|partnership\s+interest)\b/i.test(t),
+    'Charging Order'],
   [t => /\brenewal of judgment\b/i.test(t), 'Renewal of Judgment'],
   [t => /\bcontempt\b/i.test(t), 'Contempt'],
-  [t => /\bcontinuance\b|\badvance\s+(?:the\s+)?hearing\b|\bcontinue\s+(?:the\s+)?(?:hearing|trial|case)\b/i.test(t), 'Continuance / Advance'],
+  [t => /\bcontinuance\b|\badvance\s+(?:the\s+)?hearing\b|\bcontinue\s+(?:the\s+|jury\s+)?(?:hearing|trial|case|jury\s+trial)\b/i.test(t),
+    'Continuance / Advance'],
   [t => /\b(?:to |motion to |under )seal\b|\bfile\s+(?:records\s+)?under\s+seal\b/i.test(t), 'Sealing'],
   [t => /\bchange of venue\b|\btransfer (?:of )?venue\b|\btransfer venue\b|\bmotion to transfer\b|\bvenue\b/i.test(t),
     'Venue'],
@@ -1277,7 +1301,7 @@ const CIVIL_LAW_MOTION_RULES = [
      || /\bleave\s+to\s+augment\b/i.test(t)
      || /\baugment\s+expert\b/i.test(t),
     'Augment Expert Disclosure'],
-  [t => /\b(?:entry\s+of|enter)\s+(?:consent\s+)?judgment\b|\bjudgment\s+pursuant\s+to\s+stipulation\b|\bamend(?:ed)?\s+(?:the\s+)?judgment\b/i.test(t),
+  [t => /\b(?:entry\s+of|enter(?:ing)?)\s+(?:consent\s+|monetary\s+)?judgment\b|\bjudgment\s+pursuant\s+to\s+stipulation\b|\bamend(?:ed|ing)?\s*[\/\s]\s*(?:modify\s+)?(?:the\s+)?judgment\b|\bamend(?:ed|ing)?\s+(?:the\s+)?judgment\b|\bmonetary\s+judgment\b/i.test(t),
     'Entry of Judgment'],
   [t => /\bpetition\b.*\btransfer\b.*\bpayment\b|\bstructured settlement\b/i.test(t),
     'Structured Settlement Transfer'],
@@ -1292,6 +1316,26 @@ const CIVIL_LAW_MOTION_RULES = [
   // "Re-Classify").
   [t => /\bre-?classif(?:y|ication|ying)\b/i.test(t),
     'Reclassification'],
+  // Joinder of additional parties — distinct from the joinder framing
+  // we strip earlier (which is "Joinder in Motion to X"). Here a party
+  // is asking to be added or to add another, governed by CCP § 389
+  // family. Procedural.
+  [t => /\bjoinder\s+of\s+(?:additional\s+)?parties\b|\bjoin\s+(?:as\s+)?additional\s+parties\b/i.test(t),
+    'Joinder of Parties'],
+  // Substitution of a party (NOT counsel — that's "Substitution of
+  // Attorney" higher up). Real-party-in-interest swaps, successor-
+  // in-interest motions (CCP § 377.31).
+  [t => /\bsubstitut(?:e|ing|ion)\s+(?:plaintiff|defendant|petitioner|respondent|real\s+party|successor)\b|\breal\s+party\s+in\s+interest\b/i.test(t),
+    'Substitute Party'],
+  // Homestead-exemption hearings — debtor's right to keep equity in
+  // their primary residence from forced sale. Real-estate / debtor
+  // creditor flavour.
+  [t => /\bhomestead\s+exemption\b/i.test(t),
+    'Homestead Exemption'],
+  // Vexatious-litigant motions — declaring a party vexatious and
+  // imposing a prefiling order (CCP §§ 391 – 391.7). Procedural.
+  [t => /\bvexatious\s+litigant\b|\bprefiling\s+order\b/i.test(t),
+    'Vexatious Litigant'],
   // Claim-of-right-to-possession hearings come up in unlawful-detainer
   // cases when a non-party occupant claims they live there.
   [t => /\bclaim\s+of\s+right\s+to\s+possession\b/i.test(t),
@@ -1360,14 +1404,16 @@ const PROBATE_MOTION_RULES = [
   // "Status On Filing Of Inventory And Appraisal", etc.
   [t => /\binventory\s+(?:and|&)\s+appraisal\b|\bfiling\s+of\s+inventory\b|\bobjections?\s+to\s+inventory\b/i.test(t),
                                                                           'Inventory / Appraisal'],
-  // Status / Compliance — broader phrasings beyond the original
-  // status-report / status-hearing forms. Catches "REPORT OF STATUS
-  // OF ADMINISTRATION", "Status Of Closing The Estate", "Order Of
-  // Status Hearing", "ADDED TO CALENDAR FOR Will Contest", etc.
-  [t => /\bstatus\s+(?:report|hearing|on\s+(?:close|distribution|filing|order|mediation|closing|the)|of\s+(?:administration|the\s+estate|estate|mediation|closing|petition|close|distribution|the\s+close))\b/i.test(t)
+  // Status / Compliance — broad phrasings: "REPORT OF STATUS OF
+  // ADMINISTRATION", "Status Of Closing The Estate", "Order Of
+  // Status Hearing", "Status Conference", "Compliance Status Date",
+  // "ADDED TO CALENDAR FOR Will Contest", etc.
+  [t => /\bstatus\s+(?:report|hearing|conference|on\s+(?:close|distribution|filing|order|mediation|closing|the)|of\s+(?:administration|the\s+estate|estate|mediation|closing|petition|close|distribution|the\s+close))\b/i.test(t)
+     || /\bcompliance\s+status\b/i.test(t)
      || /\breport\s+of\s+status\s+of\s+administration\b/i.test(t)
      || /\border\s+of\s+status\s+hearing\b/i.test(t)
-     || /\badded\s+to\s+calendar\s+for\s+(?:status|filing|close|will\s+contest|order\s+to\s+appear|case\s+management|further)\b/i.test(t),
+     || /\bpre-?trial\s+conference\b/i.test(t)
+     || /\badded\s+to\s+calendar\s+for\s+(?:status|filing|close|will\s+contest|order\s+to\s+appear|case\s+management|further|compliance|pre-?trial)\b/i.test(t),
                                                                           'Status / Compliance Hearing'],
   [t => /\border\s+to\s+show\s+cause\b|\bosc\b/i.test(t),                'Order to Show Cause'],
   [t => /\bcase\s+management\s+hearing\b/i.test(t),                      'Case Management'],
@@ -1510,7 +1556,12 @@ const MOTION_CATEGORY = {
   // New civil L&M types added in the Misc-audit pass.
   'Trial Preference / Setting':                        'Procedural',
   'Reclassification':                                  'Procedural',
+  'Joinder of Parties':                                'Procedural',
+  'Substitute Party':                                  'Procedural',
+  'Vexatious Litigant':                                'Procedural',
   'Surplus Funds':                                     'Real Estate',
+  'Homestead Exemption':                               'Real Estate',
+  'Charging Order':                                    'Post-Judgment',
   // Unlawful-detainer-specific motion types — only seen on CUD-
   // prefixed cases in the corpus, so they get their own category
   // rather than being lumped in with general Real Estate work.
@@ -1967,6 +2018,18 @@ function rowCategory(row) {
   return motionCategory(m.type);
 }
 
+// Leading letter run from a case-number string. SF Superior Court
+// uses 3-letter prefixes (CGC, CUD, PES, etc.) but we don't hardcode
+// a length — just take the run of letters at the start. No decoding
+// to human meaning here — the user explicitly wanted the raw prefix
+// surfaced as-is so they can filter without us guessing what each
+// 3-letter code stands for.
+function casePrefix(caseNum) {
+  if (!caseNum) return '';
+  const m = String(caseNum).match(/^([A-Za-z]+)/);
+  return m ? m[1].toUpperCase() : '';
+}
+
 // Columns that DuckDB doesn't know how to ORDER BY because they're
 // derived in JS from the calendar_matter / ruling text. When sortCol
 // names one of these, runQuery drops the SQL ORDER BY and sorts the
@@ -1978,12 +2041,14 @@ const JS_DERIVED_SORT_COLS = new Set([
   'motion_category',  // bucketed via MOTION_CATEGORY[lookupMotion(...).type]
   'motion_type',      // lookupMotion(department, calendar_matter)
   'outcome',          // classifyOutcome(splitRuling(...).ruling)
+  'case_prefix',      // casePrefix(case_number)
 ]);
 
-// "main → sub" composite delimiter used in filter values + the nested
-// filter-popup labels. The arrow is U+2192; uncommon enough in real
-// motion-type / outcome / judge text that it's safe as a separator.
-const SUB_SEPARATOR = ' → ';
+// "main ⊂ sub" composite delimiter used in filter values + the nested
+// filter-popup labels. The subset symbol (U+2282) — which reads as
+// "sub-element of" — is used so filter-related arrows never collide
+// visually with the table's sort-direction arrows (U+2191 / U+2193).
+const SUB_SEPARATOR = ' ⊂ ';
 function combineMainSub(main, sub) {
   return sub ? `${main}${SUB_SEPARATOR}${sub}` : main;
 }
@@ -2014,6 +2079,9 @@ function jsSortKey(row, col) {
     const o = lookupOutcome(splitRuling(row.ruling, row.department).ruling);
     return [o.outcome || '', o.subtype || ''];
   }
+  if (col === 'case_prefix') {
+    return [casePrefix(row.case_number) || '', row.case_number || ''];
+  }
   return [row[col] ?? '', ''];
 }
 
@@ -2038,6 +2106,13 @@ const COLUMN_DEFS = [
   { key: 'court_date',      cls: 'col-date',         label: 'Date' },
   { key: 'hearing_time',    cls: 'col-time',         label: 'Time' },
   { key: 'case_number',     cls: 'col-case',         label: 'Case #' },
+  // SF Superior Court case-number prefixes (3 letters: CGC, CUD,
+  // PES, PTR, …) carry useful structural info — civil vs. probate,
+  // unlawful detainer, etc. Default-hidden so the table stays
+  // compact, but toggleable via the 🧰 Columns menu when a user
+  // wants to sort or filter by prefix without us decoding what
+  // each code means.
+  { key: 'case_prefix',     cls: 'col-prefix',       label: 'Case # Prefix', defaultHidden: true },
   { key: 'case_title',      cls: 'col-title',        label: 'Case Title' },
   // Motion category sits between Motion Type and Outcome — a sortable,
   // filterable column showing the coarse-grained bucket (Discovery,
@@ -3125,6 +3200,25 @@ function columnFiltersToSql() {
     // Outcome, motion category, and officer type are all derived in JS —
     // SQL doesn't see them, so the filter happens in columnFilterMatches.
     if (col === 'outcome' || col === 'motion_category' || col === 'officer_type') continue;
+    if (col === 'case_prefix') {
+      // Filter rows by the leading letter run of their case_number.
+      // Selected values are the prefixes the user ticked; rows whose
+      // case_number starts with one of them pass.
+      const vals = [...set];
+      const hasBlank = vals.some(v => v === '' || v == null);
+      const literals = vals.filter(v => v !== '' && v != null)
+                           .map(v => `'${escapeSql(String(v).toUpperCase())}'`);
+      const clauses = [];
+      if (literals.length) {
+        clauses.push(`UPPER(COALESCE(regexp_extract(case_number, '^[A-Za-z]+', 0), '')) IN (${literals.join(',')})`);
+      }
+      if (hasBlank) {
+        clauses.push(`(case_number IS NULL OR regexp_extract(case_number, '^[A-Za-z]+', 0) = '')`);
+      }
+      if (!clauses.length) { out.push('FALSE'); continue; }
+      out.push(clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`);
+      continue;
+    }
     if (col === 'motion_type') {
       // Resolve selected categories / types → calendar_matters via
       // MTYPE_CACHE. Hierarchical: a parent value (a Category like
@@ -3436,7 +3530,7 @@ function outcomeClass(outcome) {
 function renderTable(data) {
   const tbody = $('tbody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="no-data">No rulings match your filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="no-data">No rulings match your filters.</td></tr>';
     return;
   }
   tbody.innerHTML = data.map((r, i) => {
@@ -3475,6 +3569,7 @@ function renderTable(data) {
       <td class="col-date">${r.court_date ?? ''}</td>
       <td class="col-time">${r.hearing_time ?? ''}</td>
       <td class="col-case">${caseNumberLink(r.case_number)}</td>
+      <td class="col-prefix">${esc(casePrefix(r.case_number))}</td>
       <td class="col-title">${r.case_title ? `<span class="case-title-link" data-cn="${esc(r.case_number || '')}" title="See all tentatives for this case">${esc(r.case_title)}</span>` : ''}</td>
       <td class="col-mcat"><span class="mcat-pill ${catClass}">${esc(cat)}</span></td>
       <td class="col-mtype"><span class="mcat-glyph ${catClass}" title="Category: ${esc(cat)}">${esc(categoryGlyph(cat))}</span><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
@@ -4393,6 +4488,17 @@ async function uniqueValuesFor(col) {
         pairs.push({ value: combineMainSub(j, s), count: c, parent: j, sub: s, child: true });
       }
     }
+  } else if (col === 'case_prefix') {
+    // Derived column — DuckDB extracts the leading letter run from
+    // case_number. Empty / null case numbers fall under '(blank)'
+    // via the COALESCE.
+    const rs = (await conn.query(
+      `SELECT COALESCE(regexp_extract(case_number, '^[A-Za-z]+', 0), '') v,
+              COUNT(*) n
+         FROM data
+        GROUP BY v
+        ORDER BY n DESC, v`)).toArray();
+    pairs = rs.map(r => ({ value: String(r.v || '').toUpperCase(), count: Number(r.n) }));
   } else {
     // Direct SQL column.
     const sqlCol = col;
@@ -4414,6 +4520,7 @@ const COL_FILTER_LABELS = {
   judge:           'Judicial Officer',
   officer_type:    'Type of Judicial Officer',
   case_title:      'Case Title',
+  case_prefix:     'Case # Prefix',
 };
 
 // Columns where the unique-value list is too long to render all at once
