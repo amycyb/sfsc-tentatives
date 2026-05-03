@@ -514,6 +514,7 @@
     .mcat-Writ        { background: #e0e0f0; color: #2a2a5c; border-color: #b0b0d0; }
     .mcat-Sanctions   { background: #ffe0e0; color: #5c1a1a; border-color: #d0a0a0; }
     .mcat-Fees       { background: #f0f0d8; color: #5c5c1a; border-color: #d0d0a0; }
+    .mcat-Attorney    { background: #e8e0f0; color: #4a2a8a; border-color: #c8b0e0; }
     .mcat-Procedural  { background: #f0f0f0; color: #555; border-color: #ccc; }
     .mcat-Probate     { background: #ffe8d8; color: #5c3a1a; border-color: #d0b090; }
     .mcat-Other       { background: #f4f4f4; color: #888; border-color: #d0d0d0; }
@@ -984,12 +985,37 @@ const CIVIL_LAW_MOTION_RULES = [
     'Summary Judgment / Adjudication'],
   [t => /\bjudgment on the pleadings\b/i.test(t), 'Judgment on the Pleadings'],
   [t => /\bcompel\s+arbitration\b/i.test(t), 'Compel Arbitration'],
+  // Deem RFAs Admitted MUST come before the generic Compel rule below.
+  // Discovery motions framed as "Motion to Compel Responses to RFAs and
+  // to Deem Matters Admitted" mention "compel" but the substantive
+  // relief sought is the deemed-admission order — and the prior regex
+  // (which required literal whitespace between "admissions" and
+  // "admitted") missed both real-world variants the user filed bug
+  // reports on:
+  //   "Motion To Deem Matters In Requests For Admissions, Set Two, Admitted"
+  //   "...Matters In Request For Admission Of Truth Of Facts Be Deemed Admitted"
+  // Loosen to a "deem...admit" lazy match plus the establishing-admissions
+  // form, both anchored on word boundaries.
+  [t => /\bdeem(?:ed)?\b[\s\S]*?\badmit(?:ted)?\b/i.test(t)
+     || /\b(?:order\s+)?establish(?:ing)?\s+admissions?\b/i.test(t),
+    'Deem RFAs Admitted'],
   [t => /\bcompel\b/i.test(t), 'Compel Discovery', compelSubtype],
   [t => /\bmotion to quash\b.*\bsubpoena\b|\bquash subpoena\b/i.test(t), 'Quash Subpoena'],
   [t => /\bmotion to quash\b/i.test(t), 'Quash Service / Jurisdiction'],
   [t => /\bprotective order\b/i.test(t), 'Protective Order'],
-  [t => /\bdeem.*admissions?\s+admitted\b|\brequests?\s+for\s+admissions?\s+admitted\b|\border\s+establishing\s+admissions\b|\bestablishing\s+admissions\b/i.test(t),
-    'Deem RFAs Admitted'],
+  // Disqualify counsel — separate motion from withdraw / substitute.
+  // Excludes "disqualify judge / juror" (CCP § 170.6 challenges and the
+  // like) so we don't sweep judicial-disqualification motions in here.
+  [t => /\bdisqualif(?:y|ication|ying)\b/i.test(t)
+     && !/\b(?:judge|judicial|juror)\b/i.test(t),
+    'Disqualify Counsel'],
+  // Substitution of attorney/counsel — specifically the attorney
+  // change-of-record motion, NOT party substitution (e.g. "Motion for
+  // Order Substituting Diane Magalong As Successor-In-Interest").
+  [t => /\b(?:substitut(?:e|ion|ing)|change)\s+(?:of\s+)?(?:attorney|attorneys|counsel)\b/i.test(t)
+     || /\bsubstitution\s+of\s+counsel\b/i.test(t)
+     || /\bsubstit\s+atty\b/i.test(t),
+    'Substitution of Attorney'],
   [t => /\bsanctions?\b/i.test(t), 'Sanctions'],
   [t => /\battorney(?:'?s)?\s*fees?\b|\battorneys?\s*fees\b|\batty\s*fees?\b|\btax (?:memo of )?costs\b|\bstrike\s+memo\s+of\s+costs\b|\bmotion\s+(?:to|for)\s+strike\s+costs\b/i.test(t),
     'Attorney Fees / Costs'],
@@ -1137,10 +1163,16 @@ const MOTION_CATEGORY = {
   'Quash Service / Jurisdiction':                      'Pleadings',
   'Protective Order':                                  'Discovery',
   'Deem RFAs Admitted':                                'Discovery',
+  'Disqualify Counsel':                                'Attorney',
+  'Substitution of Attorney':                          'Attorney',
   'Sanctions':                                         'Sanctions',
   'Attorney Fees / Costs':                             'Fees & Costs',
-  'Pro Hac Vice':                                      'Procedural',
-  'Counsel — Withdraw / Be Relieved':                  'Procedural',
+  // Pro Hac Vice and Withdraw / Be Relieved live under Attorney
+  // alongside Disqualify and Substitution — together they're the set
+  // of motions that change WHO is representing a party rather than
+  // the merits of the case.
+  'Pro Hac Vice':                                      'Attorney',
+  'Counsel — Withdraw / Be Relieved':                  'Attorney',
   'Set Aside / Vacate':                                'Post-Trial',
   'Claim of Exemption':                                'Post-Judgment',
   'Right to Attach':                                   'Post-Judgment',
