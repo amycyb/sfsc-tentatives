@@ -116,23 +116,21 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 66,679 rulings &nbsp;·&nbsp; 2015-01-05 → 2026-05-04 &nbsp;·&nbsp; 1,542 hearing days &nbsp;·&nbsp; 15 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 67,239 rulings &nbsp;·&nbsp; 2015-01-05 → 2026-05-04 &nbsp;·&nbsp; 1,551 hearing days &nbsp;·&nbsp; 13 gaps</summary>
 
-66,679 tentative rulings across 1,542 hearing days (2015-01-05 → 2026-05-04).
+67,239 tentative rulings across 1,551 hearing days (2015-01-05 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 1,542 of 2,790 weekdays in range (55.3%)
-- **Days scanned:** 2,282 (including days the court posted no rulings)
+- **Hearing days with data:** 1,551 of 2,790 weekdays in range (55.6%)
+- **Days scanned:** 2,321 (including days the court posted no rulings)
 - **Earliest harvested:** 2015-01-05 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
 
-### Gaps (15)
+### Gaps (13)
 
-- 2015-06-23 → 2015-06-30
-- 2015-07-07
-- 2015-08-13 → 2016-05-02
+- 2015-09-29 → 2016-05-02
 - 2016-05-26 → 2016-06-09
 - 2016-06-15
 - 2016-07-12 → 2016-09-14
@@ -186,25 +184,21 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 304 — Asbestos Law and Motion/Discovery</strong> &nbsp;·&nbsp; 85 rulings &nbsp;·&nbsp; 2025-04-08 → 2025-08-19 &nbsp;·&nbsp; 15 hearing days &nbsp;·&nbsp; 20 gaps</summary>
+<summary><strong>Department 304 — Asbestos Law and Motion/Discovery</strong> &nbsp;·&nbsp; 85 rulings &nbsp;·&nbsp; 2025-04-08 → 2025-08-19 &nbsp;·&nbsp; 15 hearing days &nbsp;·&nbsp; 23 gaps</summary>
 
 85 tentative rulings across 15 hearing days (2025-04-08 → 2025-08-19).
 
 ### Coverage
 
 - **Hearing days with data:** 15 of 93 weekdays in range (16.1%)
-- **Days scanned:** 80 (including days the court posted no rulings)
+- **Days scanned:** 126 (including days the court posted no rulings)
 - **Earliest harvested:** 2025-04-08 (same as first hearing day)
 - **Latest harvested:** 2026-05-01
 
 
-### Gaps (20)
+### Gaps (23)
 
-- 2025-06-16 → 2025-06-20
-- 2025-06-24 → 2025-06-25
-- 2025-06-27
 - 2025-07-01
-- 2025-07-03
 - 2025-07-08
 - 2025-07-10
 - 2025-07-14
@@ -212,14 +206,21 @@ _None — all weekdays in range are accounted for._
 - 2025-07-21
 - 2025-07-23
 - 2025-07-28
-- 2025-07-30
-- 2025-08-04
-- 2025-08-07
-- 2025-08-11
-- 2025-08-14
-- 2025-08-18
-- 2025-08-22 → 2026-04-15
-- 2026-04-17 → 2026-04-23
+- 2025-08-28
+- 2025-09-02
+- 2025-09-04
+- 2025-09-08
+- 2025-09-11 → 2025-09-15
+- 2025-09-17
+- 2025-09-19
+- 2025-09-23
+- 2025-09-25 → 2025-09-26
+- 2025-09-30 → 2026-03-19
+- 2026-03-23
+- 2026-03-25
+- 2026-03-27
+- 2026-04-01
+- 2026-04-03
 
 </details>
 <details>
