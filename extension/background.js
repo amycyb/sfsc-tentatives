@@ -129,7 +129,13 @@ function courtDate(rulings) {
   return parseCourtDateISO(rulings?.[0]?.['Court Date'] ?? '');
 }
 
-async function commitToGitHub({ token, owner, repo, branch, data }) {
+// Apply the stale-page guard, build the JSON path, and check for an existing
+// duplicate file in a department. Returns { duplicate, path, content, message,
+// staleCount } where `content` is the b64 payload to PUT and `message` is the
+// suggested commit message — or { duplicate: true, path } when the date is
+// already covered. Used by both the single-file commit (commitToGitHub) and
+// the batched tree commit (commitBatchToGitHub).
+async function preparePayload({ token, owner, repo, branch, data }) {
   const { department, scraped_at } = data;
   let { rulings } = data;
   const date = data._date || courtDate(rulings);
@@ -143,6 +149,7 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
   // symptom. When detected, treat the scrape as zero rulings and commit an
   // empty marker so the gap still closes.
   let staleCount = 0;
+  let staleDate = null;
   if (rulings?.length) {
     const wrongDate = rulings.find(r => {
       const iso = parseCourtDateISO(r['Court Date'] || '');
@@ -150,9 +157,10 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
     });
     if (wrongDate) {
       staleCount = rulings.length;
+      staleDate = parseCourtDateISO(wrongDate['Court Date']);
       rulings = [];
       data = { ...data, rulings: [], _stale_dropped: staleCount,
-               _stale_court_date: parseCourtDateISO(wrongDate['Court Date']) };
+               _stale_court_date: staleDate };
     }
   }
 
@@ -160,42 +168,177 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
   const path = `raw/dept${department}/${date}-${time}.json`;
 
   const files = await getDeptDir(token, owner, repo, branch, department);
-  if (files.some(f => f.name.startsWith(`${date}-`))) return { duplicate: true, path };
+  if (files.some(f => f.name.startsWith(`${date}-`))) return { duplicate: true, path, date, department };
 
   const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
   const message = staleCount
-    ? `Mark ${date} (Dept ${department}) — 0 rulings (page returned stale ${data._stale_court_date} data)`
-    : `Add ${rulings.length} rulings for ${date} (Dept ${department})`;
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    ? `Mark ${date} (Dept ${department}) — 0 rulings (page returned stale ${staleDate} data)`
+    : `Add ${(rulings || []).length} rulings for ${date} (Dept ${department})`;
+  return {
+    duplicate: false, path, date, department, content, message,
+    staleCount, staleDate, rulings: rulings || [],
+  };
+}
+
+function recordCommittedPath({ department, date, path }) {
+  // Prime the dept-dir cache and the coverage cache so the next duplicate
+  // check + the next hotkey advance both see this date as covered without
+  // a round-trip.
+  const cached = _dirCache.get(department);
+  const fileName = path.split('/').pop();
+  if (cached && fileName) cached.files.push({ name: fileName });
+  for (const [key, entry] of _covCache) {
+    if (key.startsWith(`${department}|`) && !entry.dates.includes(date)) {
+      entry.dates.push(date);
+    }
+  }
+  trackLocalCommit(department, date).catch(() => {});
+}
+
+async function commitToGitHub({ token, owner, repo, branch, data }) {
+  const prep = await preparePayload({ token, owner, repo, branch, data });
+  if (prep.duplicate) return { duplicate: true, path: prep.path };
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${prep.path}`, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
     },
-    body: JSON.stringify({ message, content, branch }),
+    body: JSON.stringify({ message: prep.message, content: prep.content, branch }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message || `GitHub API error ${res.status}`);
   }
 
-  // Update the in-memory caches so the next duplicate check and the next
-  // hotkey advance both see this date as covered without a round-trip.
-  files.push({ name: `${date}-${time}.json` });
-  for (const [key, entry] of _covCache) {
-    if (key.startsWith(`${department}|`) && !entry.dates.includes(date)) {
-      entry.dates.push(date);
-    }
-  }
-
-  // Persist the commit so a popup reopen, service-worker restart, or a fresh
-  // "Scan Unscanned Pages" started before the ingest workflow runs still sees
-  // this date as covered. Best-effort — failure here only loses a 24h cache.
-  trackLocalCommit(department, date).catch(() => {});
+  recordCommittedPath({ department: prep.department, date: prep.date, path: prep.path });
 
   const json = await res.json();
-  return { ok: true, path, sha: json.content?.sha, stale: !!staleCount, staleCount };
+  return {
+    ok: true, path: prep.path, sha: json.content?.sha,
+    stale: !!prep.staleCount, staleCount: prep.staleCount,
+  };
+}
+
+// ── Batched tree commit (used by bulk runs) ───────────────────────────────────
+// One git commit covering every buffered scrape — much cheaper than N pushes
+// and yields a single ingest-workflow run instead of N (most of which would
+// have been throttle no-ops anyway). Falls back to per-file PUTs if the
+// caller passes a single item, since that path's response shape is what the
+// existing single-page Send button expects.
+async function commitBatchToGitHub({ token, owner, repo, branch, items }) {
+  // 1. Prepare each payload (stale-guard, duplicate check, content/path).
+  //    A duplicate-only batch is a clean no-op.
+  const prepared = [];
+  let duplicates = 0;
+  let staleCount = 0;
+  for (const it of items) {
+    const prep = await preparePayload({ token, owner, repo, branch, data: it });
+    if (prep.duplicate) { duplicates++; continue; }
+    prepared.push(prep);
+    if (prep.staleCount) staleCount++;
+  }
+  if (!prepared.length) return { committed: 0, duplicates, staleCount, sha: null };
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+
+  // 2. Resolve the head commit + base tree of `branch`.
+  const refRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`,
+    { headers });
+  if (!refRes.ok) {
+    const body = await refRes.json().catch(() => ({}));
+    throw new Error(body.message || `git ref fetch failed: ${refRes.status}`);
+  }
+  const headSha = (await refRes.json()).object.sha;
+  const headCommitRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/commits/${headSha}`,
+    { headers });
+  if (!headCommitRes.ok) {
+    const body = await headCommitRes.json().catch(() => ({}));
+    throw new Error(body.message || `git commit fetch failed: ${headCommitRes.status}`);
+  }
+  const baseTreeSha = (await headCommitRes.json()).tree.sha;
+
+  // 3. Upload one blob per file (Contents API content is b64; blobs accept
+  //    b64 directly so we feed the same payload).
+  const treeEntries = [];
+  for (const p of prepared) {
+    const blobRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ content: p.content, encoding: 'base64' }),
+    });
+    if (!blobRes.ok) {
+      const body = await blobRes.json().catch(() => ({}));
+      throw new Error(body.message || `blob create failed for ${p.path}: ${blobRes.status}`);
+    }
+    treeEntries.push({
+      path: p.path, mode: '100644', type: 'blob',
+      sha: (await blobRes.json()).sha,
+    });
+  }
+
+  // 4. Build a tree on top of the current head, then a commit pointing at it.
+  const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
+  });
+  if (!treeRes.ok) {
+    const body = await treeRes.json().catch(() => ({}));
+    throw new Error(body.message || `git tree create failed: ${treeRes.status}`);
+  }
+  const treeSha = (await treeRes.json()).sha;
+
+  // Commit message summarises the batch — first 5 paths spelled out, rest
+  // collapsed. This is what shows up in the GitHub history, so make it
+  // self-explanatory.
+  const totalRulings = prepared.reduce((n, p) => n + (p.rulings?.length || 0), 0);
+  const dates = prepared.map(p => p.date);
+  const minDate = dates.reduce((a, b) => a < b ? a : b);
+  const maxDate = dates.reduce((a, b) => a > b ? a : b);
+  const depts = [...new Set(prepared.map(p => p.department))].sort();
+  const subject = `Bulk-add ${prepared.length} day(s), ${totalRulings} ruling(s) — ${minDate}..${maxDate} (Dept ${depts.join(', ')})`;
+  const body = prepared.map(p => `  • ${p.message}`).join('\n');
+  const commitMsg = `${subject}\n\n${body}`;
+
+  const commitRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ message: commitMsg, tree: treeSha, parents: [headSha] }),
+  });
+  if (!commitRes.ok) {
+    const body = await commitRes.json().catch(() => ({}));
+    throw new Error(body.message || `git commit create failed: ${commitRes.status}`);
+  }
+  const newCommitSha = (await commitRes.json()).sha;
+
+  // 5. Fast-forward the branch ref. If a parallel commit landed in the
+  //    interim the API returns 422; the caller can re-run the batch.
+  const updateRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+    {
+      method: 'PATCH', headers,
+      body: JSON.stringify({ sha: newCommitSha, force: false }),
+    });
+  if (!updateRes.ok) {
+    const body = await updateRes.json().catch(() => ({}));
+    throw new Error(body.message || `git ref update failed: ${updateRes.status}`);
+  }
+
+  // Prime caches so the next duplicate check sees these dates as covered.
+  for (const p of prepared) {
+    recordCommittedPath({ department: p.department, date: p.date, path: p.path });
+  }
+
+  return {
+    committed: prepared.length, duplicates, staleCount,
+    sha: newCommitSha,
+  };
 }
 
 // ── Bulk scraping state machine ───────────────────────────────────────────────
@@ -210,13 +353,27 @@ async function commitToGitHub({ token, owner, repo, branch, data }) {
 //   dates[], index, currentDate,
 //   tabId, settings, waitMs,
 //   committed, skipped, errors,
+//   pendingBuffer,               // [{ date, data }] — scraped pages awaiting
+//                                // a tree-API batch commit. Flushed every
+//                                // BULK_FLUSH_EVERY successful scrapes and
+//                                // on every stop transition (done, paused,
+//                                // user-stop, fatalError) so we don't lose
+//                                // work if the run is interrupted.
 //   waitingForTab,               // true while a navigation is in flight
-//   pausedForSession,            // true when SFTC returned the "session expired"
-//                                // page; the tab has been auto-reloaded so the
-//                                // user can solve the Cloudflare CAPTCHA.
-//                                // Resume picks up at the same date that
-//                                // triggered the expiry (index NOT advanced).
+//   pausedForSession,            // true when SFTC returned the "session
+//                                // expired" page OR a Cloudflare CAPTCHA.
+//                                // The tab is auto-reloaded so the user
+//                                // can solve the challenge; Resume picks up
+//                                // at the same date (index NOT advanced).
+//   pauseReason,                 // 'session' | 'captcha' — drives the popup's
+//                                // status text. Kept distinct so the user
+//                                // knows what they're being asked to solve.
 // }
+
+// How many completed scrapes to accumulate before flushing a tree commit.
+// Smaller = fewer dates lost on a crash; larger = fewer commits / workflow
+// runs. 25 is a comfortable balance for typical bulk scans (~150 dates).
+const BULK_FLUSH_EVERY = 25;
 
 const BULK_ALARM_PREFIX = 'sfsc-bulk-next:';
 function bulkAlarmName(tabId) { return `${BULK_ALARM_PREFIX}${tabId}`; }
@@ -269,6 +426,16 @@ async function applyJobUpdate(tabId, runId, mutator) {
   return next;
 }
 
+// Same as applyJobUpdate but doesn't require running===true; used by stop /
+// pause / done flushes that mutate the job AFTER it has been marked stopped.
+async function applyJobUpdateAny(tabId, mutator) {
+  const current = await readJob(tabId);
+  if (!current) return null;
+  const next = mutator({ ...current });
+  await writeJob(tabId, next);
+  return next;
+}
+
 async function startBulk({ dates, tabId, settings, waitMs }) {
   if (tabId == null) return { error: 'No tabId on start-bulk request.' };
   await chrome.alarms.clear(bulkAlarmName(tabId));
@@ -278,8 +445,10 @@ async function startBulk({ dates, tabId, settings, waitMs }) {
     dates, index: 0, currentDate: null,
     tabId, settings, waitMs: waitMs || 5000,
     committed: 0, skipped: 0, errors: 0,
+    pendingBuffer: [],
     waitingForTab: false,
     pausedForSession: false,
+    pauseReason: null,
   };
   await writeJob(tabId, job);
   bulkStep(tabId);
@@ -290,14 +459,19 @@ async function stopBulk({ tabId } = {}) {
   if (tabId == null) return { error: 'No tabId on stop-bulk request.' };
   await chrome.alarms.clear(bulkAlarmName(tabId));
   const current = await readJob(tabId);
-  if (current) await writeJob(tabId, { ...current, running: false, pausedForSession: false });
+  if (current) {
+    await writeJob(tabId, { ...current, running: false, pausedForSession: false, pauseReason: null });
+    // Flush whatever's been scraped before the user pulled the brake — same
+    // contract as completion / pause: every stop produces a commit.
+    flushBulkBuffer(tabId, 'stop').catch(() => {});
+  }
   return { ok: true };
 }
 
-// Resume after an auto-pause (session expiry, then CAPTCHA solved). Picks
-// up at the same date that triggered the expiry — the index is intentionally
-// NOT advanced when sessionExpired is detected. Bumps runId so any
-// in-flight callbacks from the prior batch are discarded.
+// Resume after an auto-pause (session expiry or CAPTCHA, then user solved
+// the challenge). Picks up at the same date that triggered the pause —
+// the index is intentionally NOT advanced. Bumps runId so any in-flight
+// callbacks from the prior batch are discarded.
 async function resumeBulk({ tabId }) {
   if (tabId == null) return { error: 'No tabId on resume-bulk request.' };
   const current = await readJob(tabId);
@@ -313,10 +487,50 @@ async function resumeBulk({ tabId }) {
     tabId,
     waitingForTab: false,
     pausedForSession: false,
+    pauseReason: null,
   };
   await writeJob(tabId, next);
   bulkStep(tabId);
   return { ok: true };
+}
+
+// Hand the buffered scrapes to the tree-API batch commit. Always clears the
+// buffer (and decrements counts on rollback failure) so the popup's running
+// totals stay aligned with what's actually on GitHub.
+//
+// `reason` is one of: 'threshold' | 'done' | 'pause' | 'stop' | 'fatal'.
+// Threshold flushes happen mid-run; the rest happen exactly once per stop
+// transition. We swallow flush failures into a counter rather than
+// surfacing them as fatalError — the caller can re-run the same date range
+// and duplicate detection makes the second run a no-op for whatever
+// did make it.
+async function flushBulkBuffer(tabId, reason) {
+  const job = await readJob(tabId);
+  if (!job || !job.pendingBuffer?.length) return;
+  const items = job.pendingBuffer;
+  // Clear the buffer up front so a re-entrant flush (e.g. stop racing with
+  // a threshold flush) doesn't double-commit.
+  await applyJobUpdateAny(tabId, j => ({ ...j, pendingBuffer: [] }));
+
+  try {
+    const { token, repo, branch } = job.settings;
+    const [owner, repoName] = repo.split('/');
+    await commitBatchToGitHub({
+      token, owner, repo: repoName, branch,
+      items: items.map(({ date, data }) => ({ ...data, _date: date })),
+    });
+  } catch (err) {
+    // Roll the failed items back into errors so the user sees them and
+    // can re-run. Don't put them back in the buffer — re-flushing the
+    // same payload that just 422'd will keep failing.
+    await applyJobUpdateAny(tabId, j => {
+      const u = { ...j };
+      u.committed = Math.max(0, (u.committed || 0) - items.length);
+      u.errors = (u.errors || 0) + items.length;
+      u.lastFlushError = `Batch commit failed (${reason}): ${err.message}`;
+      return u;
+    });
+  }
 }
 
 async function bulkStep(tabId) {
@@ -325,6 +539,7 @@ async function bulkStep(tabId) {
 
   if (job.index >= job.dates.length) {
     await writeJob(tabId, { ...job, running: false, done: true });
+    await flushBulkBuffer(tabId, 'done');
     return;
   }
 
@@ -380,29 +595,33 @@ async function injectContentScript(job) {
       ...j, running: false, waitingForTab: false,
       fatalError: 'SFTC tab was closed. Reopen it and Resume.',
     }));
+    // Flush whatever made it into the buffer before the tab vanished. Best
+    // effort — we lose the in-progress run but at least keep the dates that
+    // already succeeded.
+    flushBulkBuffer(job.tabId, 'fatal').catch(() => {});
     return false;
   }
 }
 
 async function bulkHandleResult(job, date, data) {
-  // Commit first — we can't unwind a network call, and duplicate detection
-  // makes it idempotent on Resume. Then atomically advance the job state
-  // (or discard the update if Stop landed during the commit).
+  // Three terminal states:
+  //   • session / captcha → pause and reload tab; user solves and resumes.
+  //   • error / pending   → count an error, advance.
+  //   • good scrape       → buffer for tree-commit.
   let outcome = 'errors';
-  if (data?.sessionExpired) {
+  let pauseReason = null;
+  if (data?.captchaChallenge) {
     outcome = 'session';
+    pauseReason = 'captcha';
+  } else if (data?.sessionExpired) {
+    outcome = 'session';
+    pauseReason = 'session';
   } else if (data && !data.error && !data.pending) {
-    try {
-      const { token, repo, branch } = job.settings;
-      const [owner, repoName] = repo.split('/');
-      const res = await commitToGitHub({
-        token, owner, repo: repoName, branch,
-        data: { ...data, _date: date },
-      });
-      outcome = res.duplicate ? 'skipped' : 'committed';
-    } catch {
-      outcome = 'errors';
-    }
+    // Buffer the scrape; commit happens at flush time. We optimistically
+    // count it as "committed" — if the tree commit fails, flushBulkBuffer
+    // rolls the count back into "errors". That keeps the running display
+    // useful (fast feedback per date) without blocking on the network.
+    outcome = 'committed';
   }
 
   const next = await applyJobUpdate(job.tabId, job.runId, j => {
@@ -414,7 +633,11 @@ async function bulkHandleResult(job, date, data) {
       // below so storage state is settled before the tab nav fires.
       u.running = false;
       u.pausedForSession = true;
+      u.pauseReason = pauseReason;
       return u;
+    }
+    if (outcome === 'committed') {
+      u.pendingBuffer = [...(u.pendingBuffer || []), { date, data }];
     }
     u[outcome]++;
     u.index++;
@@ -425,10 +648,27 @@ async function bulkHandleResult(job, date, data) {
   });
 
   if (outcome === 'session') {
+    // Flush the buffer before the user touches the tab — keeps everything
+    // we've collected safe even if the user closes the popup or the tab
+    // before solving the CAPTCHA.
+    await flushBulkBuffer(job.tabId, 'pause');
     // Fire-and-forget: tell the content script to reload the page. We don't
     // await it — the reload tears down the message channel, and the popup's
     // status listener already shows the paused-for-session prompt.
     chrome.tabs.sendMessage(job.tabId, { action: 'restart-session' }).catch(() => {});
+    return;
+  }
+
+  // Threshold flush: every BULK_FLUSH_EVERY *successful* scrapes, push a
+  // tree commit so we never have more than that many at risk.
+  if (next && (next.committed || 0) > 0
+      && (next.committed % BULK_FLUSH_EVERY) === 0
+      && (next.pendingBuffer?.length || 0) > 0) {
+    await flushBulkBuffer(job.tabId, 'threshold');
+  }
+
+  if (next?.done) {
+    await flushBulkBuffer(job.tabId, 'done');
     return;
   }
 
@@ -469,6 +709,10 @@ async function commitAndAdvance() {
   const data = await sendMessage(tab.id, { action: 'scrape' });
   if (!data || data.error) {
     toast(`SFSC: ${data?.error || 'could not read page — run a search first'}`, 'error');
+    return;
+  }
+  if (data.captchaChallenge) {
+    toast('SFSC: Cloudflare CAPTCHA — solve it in the SFTC tab and try again', 'error');
     return;
   }
   if (data.sessionExpired) {
