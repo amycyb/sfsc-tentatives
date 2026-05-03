@@ -143,15 +143,19 @@ function scrape() {
     const valueTd = tds[2] || tds[tds.length - 1];
     const value   = valueTd ? valueTd.innerText.trim() : '';
 
-    if (['Case Number', 'Case Title', 'Court Date', 'Calendar Matter', 'Rulings'].includes(field)) {
+    if (['Case Number', 'Case Title', 'Court Date', 'Calendar Matter', 'Rulings', 'Examiner'].includes(field)) {
       current[field] = value;
     }
   }
   if (current['Case Number']) rulings.push({ ...current });
 
-  // Auto-populate Judge from the code at the end of each ruling
+  // Auto-populate Judge from the Examiner field (Probate) or from the
+  // code tag at the end of each ruling (civil/other departments).
   for (const r of rulings) {
-    if (r.Rulings) {
+    if (r.Examiner) {
+      // Title-case the all-caps examiner name the SFTC page emits.
+      r.Judge = r.Examiner.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    } else if (r.Rulings) {
       const judge = extractJudge(r.Rulings);
       if (judge) r.Judge = judge;
     }
