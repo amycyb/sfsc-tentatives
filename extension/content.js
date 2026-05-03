@@ -69,15 +69,64 @@ function extractJudge(rulingText) {
   return JUDGE_MAP[code] || null;
 }
 
+// Detect a Cloudflare interstitial / CAPTCHA challenge page. The SFTC site
+// sits behind Cloudflare and will occasionally challenge a request mid-scan
+// (especially after a session reset or when the bot heuristics trip). The
+// challenge HTML is generic — no resultsRulings, no resultsCount — so the
+// bulk scraper used to mis-classify it as a hard "No results block" error
+// and silently burn through the rest of the date list while every request
+// hit the same wall. Treat it like session expiry: pause, prompt the user,
+// resume after they solve it.
+function detectCaptchaChallenge() {
+  // Title-based: "Just a moment...", "Attention Required! | Cloudflare",
+  // "Please Wait... | Cloudflare", "Verifying you are human", etc.
+  const title = (document.title || '').toLowerCase();
+  if (/just a moment|attention required|please wait|verifying you are human|checking your browser|one more step/i.test(title)) {
+    return true;
+  }
+  // Element / class-based markers Cloudflare emits on its challenge pages.
+  if (document.querySelector(
+        '#cf-wrapper, .cf-browser-verification, #challenge-form, ' +
+        '#challenge-running, #challenge-stage, #cf-challenge-running, ' +
+        '.cf-error-details, iframe[src*="challenges.cloudflare.com"], ' +
+        'iframe[src*="cloudflare.com/cdn-cgi/challenge-platform"], ' +
+        'script[src*="cdn-cgi/challenge-platform"], ' +
+        'script[src*="challenges.cloudflare.com/turnstile"]'
+      )) {
+    return true;
+  }
+  // hCaptcha / reCAPTCHA shells that occasionally front Cloudflare's challenge.
+  if (document.querySelector(
+        '.h-captcha, iframe[src*="hcaptcha.com"], ' +
+        '.g-recaptcha, iframe[src*="recaptcha"]'
+      )) {
+    return true;
+  }
+  // URL-level: cdn-cgi challenge endpoints serve their own pages too.
+  const href = location.href || '';
+  if (/\/cdn-cgi\/(?:l\/)?challenge-platform|__cf_chl_/i.test(href)) {
+    return true;
+  }
+  return false;
+}
+
 function scrape() {
-  // Session-expiry detection runs FIRST and inspects the resultsCount
-  // element directly. Earlier versions gated this on an empty
-  // resultsRulings table, but SFTC's session-expired response leaves the
-  // previous search's <tr>s in place (only the count label is replaced
-  // with "Your session has expired."). With the rulingsEmpty gate the
-  // check missed the real case, scrape() returned the stale rulings, the
-  // stale-court-date guard in commitToGitHub then converted them to an
-  // empty marker, and the bulk run silently advanced to the next date.
+  // CAPTCHA / Cloudflare challenge detection runs first — see
+  // detectCaptchaChallenge for why. We surface it as a distinct field so
+  // the popup can show a CAPTCHA-specific prompt while the background
+  // handler treats it the same as a session expiry (pause + reload).
+  if (detectCaptchaChallenge()) {
+    return { captchaChallenge: true };
+  }
+
+  // Session-expiry detection inspects the resultsCount element directly.
+  // Earlier versions gated this on an empty resultsRulings table, but
+  // SFTC's session-expired response leaves the previous search's <tr>s in
+  // place (only the count label is replaced with "Your session has
+  // expired."). With the rulingsEmpty gate the check missed the real
+  // case, scrape() returned the stale rulings, the stale-court-date guard
+  // in commitToGitHub then converted them to an empty marker, and the
+  // bulk run silently advanced to the next date.
   const sessionExpiredRe = /session\s+has\s+expired|your\s+session\s+(has\s+)?expired|session\s+timed?\s+out/i;
   const countEl   = document.getElementById('resultsCount');
   const countText = countEl ? countEl.textContent : '';
@@ -297,13 +346,14 @@ async function fillAndScrape(dateStr, waitMs = 2000) {
   // genuinely-empty result. If the count element now reports a numeric
   // total (even 0), the page DID render — return that scrape rather than
   // a pending marker that bulk would mis-route to errors.
-  // Session-expired is also a definitive end state: the timer can run out
-  // because pageHasResponded never tripped (the content script raced the
-  // navigation), but the scrape itself shows the expired page → bubble it
-  // up so bulkHandleResult can pause instead of treating it as `pending`
-  // (which counts as an error and skips the date).
+  // Session-expired AND captchaChallenge are also definitive end states:
+  // the timer can run out because pageHasResponded never tripped (the
+  // content script raced the navigation), but the scrape itself shows the
+  // expired/challenged page → bubble it up so bulkHandleResult can pause
+  // instead of treating it as `pending` (which counts as an error and
+  // burns through the rest of the date list).
   const finalScrape = scrape();
-  if (finalScrape?.sessionExpired) return finalScrape;
+  if (finalScrape?.sessionExpired || finalScrape?.captchaChallenge) return finalScrape;
   if (finalScrape && typeof finalScrape.reported_total === 'number') return finalScrape;
   return { pending: true };
 }

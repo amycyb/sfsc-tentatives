@@ -316,6 +316,17 @@
 
     <div id="bulk-section">
       <button id="auto-scan-btn" data-tip="Find every business day from the first archived date through today that's missing, then scrape them in the background." disabled>Scan Unscanned Pages</button>
+      <div id="scan-direction-row" data-tip="Direction the auto-scan walks the unscanned dates: forward starts with the oldest gap, backward starts with the newest." style="display:flex;gap:0.6rem;align-items:center;justify-content:center;font-size:0.72rem;color:#1a3a5c;margin:-0.3rem 0 0.55rem;">
+        <span style="color:#555">Direction:</span>
+        <label style="display:inline-flex;align-items:center;gap:0.2rem;cursor:pointer">
+          <input type="radio" name="scan-direction" value="forward" checked style="margin:0;vertical-align:middle">
+          <span>Forward (oldest first)</span>
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:0.2rem;cursor:pointer">
+          <input type="radio" name="scan-direction" value="backward" style="margin:0;vertical-align:middle">
+          <span>Backward (newest first)</span>
+        </label>
+      </div>
       <div class="bulk-row">
         <div>
           <label>From</label>

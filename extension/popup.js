@@ -158,6 +158,16 @@ async function jumpToResume() {
 
 // ── Auto-scan: fetch gaps and start bulk immediately ──────────────────────────
 
+// Returns the user's chosen scan direction:
+//   'forward'  — earliest unscanned weekday first (default; matches the
+//                pre-2026 behaviour).
+//   'backward' — most-recent unscanned weekday first; useful for filling
+//                in fresh dates while older gaps catch up out of band.
+function getScanDirection() {
+  const sel = document.querySelector('input[name="scan-direction"]:checked');
+  return sel?.value === 'backward' ? 'backward' : 'forward';
+}
+
 async function autoScanUnscanned() {
   const s = await loadSettings();
   const err = validateSettings(s);
@@ -185,13 +195,17 @@ async function autoScanUnscanned() {
   }
 
   const scanned = new Set(scannedDates || []);
-  const unscanned = allWeekdays.filter(d => !scanned.has(d));
+  let unscanned = allWeekdays.filter(d => !scanned.has(d));
 
   if (!unscanned.length) {
     setStatus('All dates up to today are already scanned!', 'success');
     $('auto-scan-btn').disabled = false;
     return;
   }
+
+  // weekdaysBetween already returns ascending order; reverse for newest-first.
+  const direction = getScanDirection();
+  if (direction === 'backward') unscanned = [...unscanned].reverse();
 
   const waitMs   = parseInt($('bulk-wait').value) || 5_000;
   const settings = { token: s.token, repo: s.repo, branch: s.branch || 'master' };
@@ -200,7 +214,10 @@ async function autoScanUnscanned() {
   $('bulk-stop').style.display = 'block';
   $('bulk-resume').style.display = 'none';
   $('send-btn').disabled = true;
-  setStatus(`Starting scan of ${unscanned.length} unscanned dates…`, 'loading');
+  const dirNote = direction === 'backward'
+    ? 'newest-first'
+    : 'oldest-first';
+  setStatus(`Starting scan of ${unscanned.length} unscanned dates (${dirNote})…`, 'loading');
 
   chrome.runtime.sendMessage(
     { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs } },
@@ -349,6 +366,10 @@ async function init() {
       setStatus('Could not read page. Refresh and try again.', 'error');
       return;
     }
+    if (result.captchaChallenge) {
+      setStatus('Cloudflare CAPTCHA showing on the SFTC tab — solve it, then reopen the popup.', 'error');
+      return;
+    }
     if (result.sessionExpired) {
       setStatus('Session has expired. Please log in to the SFSC page again.', 'error');
       return;
@@ -431,19 +452,27 @@ function updateBulkStatus(job) {
     setStatus(job.fatalError, 'error');
     resetBulkButtons();
   } else if (job.done) {
+    const flushNote = job.lastFlushError ? ` — last flush: ${job.lastFlushError}` : '';
     setStatus(
-      `Done: ${job.committed} committed, ${job.skipped} skipped, ${job.errors} errors`,
+      `Done: ${job.committed} committed, ${job.skipped} skipped, ${job.errors} errors${flushNote}`,
       job.errors > 0 ? 'warn' : 'success'
     );
     resetBulkButtons();
   } else if (!job.running && job.pausedForSession) {
-    // SFTC returned the "session expired" page. We've already auto-reloaded
-    // the tab so the user is staring at the Cloudflare CAPTCHA; once they
-    // solve it (and the SFTC search page comes back), Resume picks up at
-    // the same date that triggered the expiry.
+    // SFTC either returned the "session expired" page or Cloudflare hit us
+    // with a CAPTCHA challenge. Either way we've auto-reloaded the tab so
+    // the user is now staring at the SFTC login / Cloudflare interstitial;
+    // once they solve it (and the search page comes back), Resume picks up
+    // at the same date that triggered the pause.
+    const reason = job.pauseReason === 'captcha'
+      ? 'Cloudflare CAPTCHA challenge'
+      : 'Session expired';
+    const action = job.pauseReason === 'captcha'
+      ? 'Solve the CAPTCHA in the SFTC tab, then click Resume.'
+      : 'Solve the Cloudflare CAPTCHA in the SFTC tab, then click Resume.';
     setStatus(
-      `Session expired at ${job.index + 1}/${job.dates?.length} (${job.currentDate || '…'}). ` +
-      `Solve the Cloudflare CAPTCHA in the SFTC tab, then click Resume. ` +
+      `${reason} at ${job.index + 1}/${job.dates?.length} (${job.currentDate || '…'}). ` +
+      `${action} ` +
       `(${job.committed} committed, ${job.skipped} skipped, ${job.errors} err so far)`,
       'warn'
     );
@@ -612,6 +641,20 @@ $('hotkey-config').addEventListener('click', e => { e.preventDefault(); openShor
 $('auto-scan-btn').addEventListener('click', autoScanUnscanned);
 $('jump-first').addEventListener('click', jumpToFirstGap);
 $('jump-last').addEventListener('click',  jumpToResume);
+
+// Persist the scan direction radio across popup opens so the user doesn't
+// have to re-pick newest-first every time they reopen the extension.
+chrome.storage.local.get('_scanDirection').then(({ _scanDirection }) => {
+  if (_scanDirection === 'backward' || _scanDirection === 'forward') {
+    const radio = document.querySelector(`input[name="scan-direction"][value="${_scanDirection}"]`);
+    if (radio) radio.checked = true;
+  }
+});
+document.querySelectorAll('input[name="scan-direction"]').forEach(r => {
+  r.addEventListener('change', () => {
+    chrome.storage.local.set({ _scanDirection: r.value });
+  });
+});
 
 // ── Tooltips toggle ──────────────────────────────────────────────────────────
 // Each interactable element carries a data-tip attribute; CSS in popup.html
