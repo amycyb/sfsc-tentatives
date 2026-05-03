@@ -485,6 +485,7 @@
     .col-outcome { width: 130px; }
     .col-judge   { width: 165px; }
     .col-is-examiner { width: 90px; text-align: center; font-size: 0.78rem; color: #6b5300; }
+    .col-is-discovery { width: 90px; text-align: center; font-size: 0.78rem; color: #1a3a5c; }
     .col-ruling  { color: #666; }
     .col-hidden  { display: none !important; }
     .examiner-badge {
@@ -753,6 +754,9 @@
         </th>
         <th class="col-is-examiner">
           <span class="col-head"><span class="col-label">Examiner?</span></span>
+        </th>
+        <th class="col-is-discovery">
+          <span class="col-head"><span class="col-label">Discovery?</span></span>
         </th>
         <th class="col-ruling">
           <span class="col-head"><span class="col-label">Ruling (excerpt)</span></span>
@@ -1193,6 +1197,37 @@ function isExaminer(row) {
   return !!row && !!row.judge && EXAMINER_DEPTS.has(String(row.department));
 }
 
+// Discovery-motion tag — surfaces a 🔍 badge in the Motion Type cell and
+// drives the hidden "Discovery? (column)" Excel-style filter. Signals,
+// in order of confidence:
+//   1. Dept 301 — the Discovery department itself. Every ruling there
+//      is treated as discovery (the user confirmed "301 was always
+//      discovery; it only sometimes heard asbestos matters"). Rare
+//      non-discovery business calendared in 301 — CEQA, writs — is
+//      accepted as a known false positive in exchange for catching
+//      every genuine discovery motion without case-by-case classification.
+//   2. Dept 304 with `calendar_kind = 'discovery'` (set at ingest time
+//      from the raw/dept304/discovery/ sub-folder).
+//   3. Ruling text starts with "On Asbestos Discovery Calendar" —
+//      catches dept 304 rows whose calendar_kind isn't yet populated.
+//   4. Auto-classified motion type matches a discovery-flavoured
+//      taxonomy entry — catches discovery motions calendared in any
+//      other department.
+const DISCOVERY_MOTION_TYPES = new Set([
+  'Compel Discovery',
+  'Quash Subpoena',
+  'Protective Order',
+  'Deem RFAs Admitted',
+]);
+function isDiscovery(row) {
+  if (!row) return false;
+  if (String(row.department) === '301') return true;
+  if (row.calendar_kind === 'discovery') return true;
+  if (/On\s+Asbestos\s+Discovery\s+Calendar/i.test(row.ruling || '')) return true;
+  const m = lookupMotion(row.department, row.calendar_matter);
+  return DISCOVERY_MOTION_TYPES.has(m.type);
+}
+
 // ─── Column visibility ──────────────────────────────────────────────────────
 // Each entry maps a logical column key to the CSS class shared by its <th>
 // and every matching <td>. `defaultHidden: true` keeps a column off by
@@ -1209,6 +1244,7 @@ const COLUMN_DEFS = [
   { key: 'calendar_matter', cls: 'col-motion',       label: 'Motion Caption' },
   { key: 'judge',           cls: 'col-judge',        label: 'Judge / Examiner' },
   { key: 'is_examiner',     cls: 'col-is-examiner',  label: 'Examiner? (column)', defaultHidden: true },
+  { key: 'is_discovery',    cls: 'col-is-discovery', label: 'Discovery? (column)', defaultHidden: true },
   { key: 'ruling',          cls: 'col-ruling',       label: 'Ruling (excerpt)' },
 ];
 const COL_VIS_LS_KEY = 'sfsc.columnVisibility';
@@ -1338,10 +1374,16 @@ async function rebuildDataView() {
         NULL::VARCHAR AS judge_canonical,
         NULL::VARCHAR AS judge_subtype,
         NULL::VARCHAR AS ruling,
-        NULL::VARCHAR AS row_hash
+        NULL::VARCHAR AS row_hash,
+        NULL::VARCHAR AS calendar_kind
       WHERE FALSE`);
     return;
   }
+  // calendar_kind is populated for Dept 304 rows (Asbestos Law & Motion
+  // vs Asbestos Discovery sub-calendar) and null for everything else.
+  // Older per-dept parquets predate the column; we COALESCE through the
+  // column-existence guard so the union SELECT works on a mixed cohort
+  // where some tables have the column and some don't.
   const unions = [...loadedDepts.keys()]
     .map(d => `SELECT
         department, case_number, case_title, court_date, hearing_time,
@@ -1355,7 +1397,8 @@ async function rebuildDataView() {
           WHEN judge LIKE 'Judge Pro Tem:%' THEN TRIM(SUBSTRING(judge FROM 16))
           ELSE NULL
         END AS judge_subtype,
-        ruling, row_hash
+        ruling, row_hash,
+        TRY_CAST(calendar_kind AS VARCHAR) AS calendar_kind
       FROM ${tableNameFor(d)}`)
     .join(' UNION ALL ');
   await conn.query(`CREATE OR REPLACE VIEW data AS ${unions}`);
@@ -1977,7 +2020,7 @@ async function runQuery(page = 0) {
         conn.query(`
           SELECT department, case_number, case_title, court_date, hearing_time,
                  calendar_matter, judge, judge_canonical, judge_subtype,
-                 ruling, row_hash
+                 ruling, row_hash, calendar_kind
           FROM data WHERE ${where}
           ORDER BY ${sortCol} ${sortDir}, case_number
         `),
@@ -1998,7 +2041,7 @@ async function runQuery(page = 0) {
         conn.query(`
           SELECT department, case_number, case_title, court_date, hearing_time,
                  calendar_matter, judge, judge_canonical, judge_subtype,
-                 ruling, row_hash
+                 ruling, row_hash, calendar_kind
           FROM data WHERE ${where}
           ORDER BY ${sortCol} ${sortDir}, case_number
           LIMIT ${PAGE_SIZE} OFFSET ${offset}
@@ -2033,7 +2076,7 @@ function outcomeClass(outcome) {
 function renderTable(data) {
   const tbody = $('tbody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="no-data">No rulings match your filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="no-data">No rulings match your filters.</td></tr>';
     return;
   }
   tbody.innerHTML = data.map((r, i) => {
@@ -2042,6 +2085,7 @@ function renderTable(data) {
     const o = lookupOutcome(splitRuling(r.ruling, r.department).ruling);
     const oSub = o.subtype ? `<div class="mtype-sub">${esc(o.subtype)}</div>` : '';
     const examiner = isExaminer(r);
+    const discovery = isDiscovery(r);
     // Judge cell: render judge_canonical (e.g. "Judge Pro Tem") with the
     // specific JPT name as a sub-line — same visual pattern as motion type
     // / outcome with their subtypes. Falls back to the raw judge field if
@@ -2051,17 +2095,24 @@ function renderTable(data) {
     const judgeCell = judgeMain
       ? `${esc(judgeMain)}${examiner ? '<span class="examiner-badge" title="Examiner (not a judge) — Probate matters are reviewed by court examiners.">📋</span>' : ''}${jSub}`
       : '';
+    // Discovery badge in the Motion Type cell — same visual treatment as
+    // the Examiner 📋 in the Judge cell. Hidden by default (column is
+    // opt-in via the 🧰 Columns menu).
+    const discBadge = discovery
+      ? '<span class="examiner-badge" title="Discovery motion — auto-tagged from dept (301), calendar_kind (Asbestos Discovery sub-calendar in 304), or motion-type classification.">🔍</span>'
+      : '';
     return `<tr data-idx="${i}">
       <td class="col-dept">${esc(r.department)}</td>
       <td class="col-date">${r.court_date ?? ''}</td>
       <td class="col-time">${r.hearing_time ?? ''}</td>
       <td class="col-case">${esc(r.case_number)}</td>
       <td class="col-title">${esc(r.case_title)}</td>
-      <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
+      <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${discBadge}${sub}</td>
       <td class="col-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome)}</span>${oSub}</td>
       <td class="col-motion">${esc(r.calendar_matter)}</td>
       <td class="col-judge">${judgeCell}</td>
       <td class="col-is-examiner">${examiner ? '✓' : ''}</td>
+      <td class="col-is-discovery">${discovery ? '✓' : ''}</td>
       <td class="col-ruling">${esc((splitRuling(r.ruling, r.department).ruling).slice(0, 140))}</td>
     </tr>`;
   }).join('');

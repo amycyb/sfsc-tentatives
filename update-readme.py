@@ -27,7 +27,7 @@ DEPT_NAMES = {
 STATIC_TOP = """\
 # SFSC Tentative Rulings
 
-A searchable archive of every **tentative ruling** posted by the San Francisco Superior Court. Departments covered:
+A searchable archive of every **tentative ruling** posted by the San Francisco Superior Court. While tentative rulings are freely available at <https://sf.courts.ca.gov/online-services/tentative-rulings>, they can only be found by date and case number. This repo allows numerous data operations that are not possible under that limited format, as discussed below. Departments covered:
 
 - Department 204 (Probate)
 - Department 301 (Discovery)
@@ -205,12 +205,17 @@ def scraped_dates_for_dept(dept: str) -> set[str]:
     """Dates we have raw scrape evidence for, derived from filenames in
     raw/dept<N>/. A date with a raw file is *not* a gap even if no rulings
     landed in the parquet for it (e.g. the page returned zero tentatives,
-    or returned tentatives whose hearings are on a different date)."""
+    or returned tentatives whose hearings are on a different date).
+
+    Walks recursively because Dept 304 splits its raw files into
+    raw/dept304/discovery/ and raw/dept304/law-and-motion/ sub-folders
+    (the two Asbestos sub-calendars). Non-304 depts use the flat layout
+    so the recursion is a no-op for them."""
     raw_dir = HERE / 'raw' / f'dept{dept}'
     if not raw_dir.is_dir():
         return set()
     out = set()
-    for p in raw_dir.glob('*.json'):
+    for p in raw_dir.rglob('*.json'):
         # Filenames are <YYYY-MM-DD>-<HHMMSS>.json
         stem = p.stem
         if len(stem) >= 10 and stem[4] == '-' and stem[7] == '-':
@@ -266,16 +271,44 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
 
     coverage_pct = (n_days_data / weekdays_in_data_range * 100) if weekdays_in_data_range else 0
 
+    # Per-dept availability notes — surfaced inside the collapsible body
+    # so a reader doesn't wonder why the gap list excludes a long stretch.
+    # Dept 301 didn't post tentatives online before mid-March 2024 (the
+    # date its calendar started showing up on the SFTC tentatives page);
+    # we explicitly trim raw scrapes + parquet rows to that floor.
+    avail_notes = {
+        '301': 'Department 301 tentatives are not available online before 2024-03-19 — earlier dates are excluded from gap-finding and bulk scraping.',
+    }
+    avail_note = avail_notes.get(dept, '')
+
+    # Dept 304 hosts two sub-calendars (Asbestos Law & Motion and
+    # Asbestos Discovery). The split is recorded per row in the
+    # `calendar_kind` column — surface the breakdown so a reader sees
+    # how the 304 corpus divides without having to query the parquet.
+    sub_breakdown = ''
+    if 'calendar_kind' in df_dept.columns:
+        kinds = df_dept['calendar_kind'].fillna('(unspecified)').value_counts()
+        if len(kinds) > 1:
+            lines = ['', '### Sub-calendar breakdown', '']
+            for kind, n in kinds.items():
+                label = {
+                    'discovery':       'Asbestos Discovery',
+                    'law-and-motion':  'Asbestos Law and Motion',
+                }.get(kind, kind)
+                lines.append(f'- **{label}:** {n:,} ruling{"s" if n != 1 else ""}')
+            sub_breakdown = '\n'.join(lines) + '\n'
+
     body = f"""\
 
 {count:,} tentative rulings across {n_days_data:,} hearing day{"s" if n_days_data != 1 else ""} ({earliest_data} → {latest_data}).
-
+{f'{chr(10)}> _{avail_note}_{chr(10)}' if avail_note else ''}
 ### Coverage
 
 - **Hearing days with data:** {n_days_data:,} of {weekdays_in_data_range:,} weekdays in range ({coverage_pct:.1f}%)
 - **Days scanned:** {n_days_scanned:,} (including days the court posted no rulings)
 - **Earliest harvested:** {earliest_harvest}{' (same as first hearing day)' if earliest_harvest == earliest_data else ''}
 - **Latest harvested:** {latest_harvest}{' (same as last hearing day)' if latest_harvest == latest_data else ''}
+{sub_breakdown}
 
 ### Gaps ({n_gaps})
 

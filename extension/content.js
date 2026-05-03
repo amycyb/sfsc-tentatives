@@ -34,6 +34,9 @@ const JUDGE_MAP = {
   RU:  'Richard B. Ulmer Jr.',    RE:  'Rochelle C. East',
   CEK: 'Curtis E.A. Karnow',      JQ:  'Joseph M. Quinn',
   SB:  'Suzanne Ramos Bolanos',   AYSC:'Andrew Y.S. Cheng',
+  CVA: 'Christine Van Aken',
+  CM:  'Cindee Mayfield',
+  REQ: 'Ronald Evans Quidachay',
   BH:  'Judge Pro Tem: Bruce Highman',     DM:  'Judge Pro Tem: David McDonald',
   PC:  'Judge Pro Tem: Peter Catalanotti', TC:  'Judge Pro Tem: Tom Cohen',
   PR:  'Judge Pro Tem: Paul Renne',        SBS: 'Judge Pro Tem: Steven B. Stein',
@@ -52,13 +55,23 @@ function extractJudge(rulingText) {
   // Trailing tag forms observed in the wild:
   //   =(302/CK)  =(D302/CK)  (302/CK)  =(JPT)  =(525/JPT)  =(JPT/525)
   //   +(302/HEK) =(302.JMQ)  =(HEK)    (D302)  =(D525)     =(525)
-  // Optional [=+] prefix; required parens; optional D before digits;
-  // separator may be / . , or whitespace; optional trailing period.
-  const m = rulingText.match(/[=+]?\s*\(\s*([A-Za-z0-9][A-Za-z0-9\s/.,]{0,15})\s*\)\s*\.?\s*$/);
+  //
+  // We require *either* an `=`/`+` prefix on the parenthetical *or* a
+  // dept-vs-code separator (/, .) inside the parens. Otherwise a
+  // perfectly normal trailing reference like "(CCP 1094.5)" or "(CR
+  // 8.10)" — Code-of-Civil-Procedure / California Rules citations,
+  // common in petition rulings — gets read as a fictitious "CCP" /
+  // "CR" judge and the row's `judge` ends up null instead of being
+  // populated by other heuristics.
+  const m = rulingText.match(/([=+])?\s*\(\s*([A-Za-z0-9][A-Za-z0-9\s/.,]{0,15})\s*\)\s*\.?\s*$/);
   if (!m) return null;
+  const hasPrefix = !!m[1];
+  const inside = m[2];
+  const hasSeparator = /[\/\.]/.test(inside);
+  if (!hasPrefix && !hasSeparator) return null;
   // Pick the first letter-only run that isn't a bare D dept-marker.
   // Dept-only tags like (D302) yield no code → null (data genuinely lacks a judge code).
-  const codes = m[1].match(/[A-Za-z]+/g) || [];
+  const codes = inside.match(/[A-Za-z]+/g) || [];
   const code = codes.find(c => c.toUpperCase() !== 'D')?.toUpperCase();
   if (!code) return null;
   if (code === 'JPT') {

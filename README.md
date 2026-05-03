@@ -1,6 +1,6 @@
 # SFSC Tentative Rulings
 
-A searchable archive of every **tentative ruling** posted by the San Francisco Superior Court. Departments covered:
+A searchable archive of every **tentative ruling** posted by the San Francisco Superior Court. While tentative rulings are freely available at <https://sf.courts.ca.gov/online-services/tentative-rulings>, they can only be found by date and case number. This repo allows numerous data operations that are not possible under that limited format, as discussed below. Departments covered:
 
 - Department 204 (Probate)
 - Department 301 (Discovery)
@@ -116,16 +116,17 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 42,603 rulings &nbsp;·&nbsp; 2020-01-07 → 2026-05-04 &nbsp;·&nbsp; 1,037 hearing days &nbsp;·&nbsp; 0 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 49,910 rulings &nbsp;·&nbsp; 2020-01-06 → 2026-05-04 &nbsp;·&nbsp; 1,201 hearing days &nbsp;·&nbsp; 0 gaps</summary>
 
-42,603 tentative rulings across 1,037 hearing days (2020-01-07 → 2026-05-04).
+49,910 tentative rulings across 1,201 hearing days (2020-01-06 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 1,037 of 1,555 weekdays in range (66.7%)
+- **Hearing days with data:** 1,201 of 1,556 weekdays in range (77.2%)
 - **Days scanned:** 1,556 (including days the court posted no rulings)
-- **Earliest harvested:** 2020-01-06
+- **Earliest harvested:** 2020-01-06 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
+
 
 ### Gaps (0)
 
@@ -133,31 +134,29 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 3,023 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 269 hearing days &nbsp;·&nbsp; 6 gaps</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 4,168 rulings &nbsp;·&nbsp; 2024-03-19 → 2026-05-04 &nbsp;·&nbsp; 373 hearing days &nbsp;·&nbsp; 1 gap</summary>
 
-3,023 tentative rulings across 269 hearing days (2024-03-19 → 2026-05-04).
+4,168 tentative rulings across 373 hearing days (2024-03-19 → 2026-05-04).
+
+> _Department 301 tentatives are not available online before 2024-03-19 — earlier dates are excluded from gap-finding and bulk scraping._
 
 ### Coverage
 
-- **Hearing days with data:** 269 of 522 weekdays in range (51.5%)
-- **Days scanned:** 977 (including days the court posted no rulings)
+- **Hearing days with data:** 373 of 522 weekdays in range (71.5%)
+- **Days scanned:** 525 (including days the court posted no rulings)
 - **Earliest harvested:** 2017-10-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (6)
 
-- 2017-10-05 → 2022-02-01
-- 2022-12-27
-- 2023-03-14 → 2023-06-01
-- 2023-10-05
-- 2023-11-13 → 2023-11-27
-- 2023-12-28 → 2023-12-29
+### Gaps (1)
+
+- 2017-10-05 → 2024-03-18
 
 </details>
 <details>
-<summary><strong>Department 302 — Civil Law and Motion</strong> &nbsp;·&nbsp; 60,472 rulings &nbsp;·&nbsp; 2014-01-02 → 2026-05-04 &nbsp;·&nbsp; 2,999 hearing days &nbsp;·&nbsp; 0 gaps</summary>
+<summary><strong>Department 302 — Civil Law and Motion</strong> &nbsp;·&nbsp; 60,463 rulings &nbsp;·&nbsp; 2014-01-02 → 2026-05-04 &nbsp;·&nbsp; 2,999 hearing days &nbsp;·&nbsp; 0 gaps</summary>
 
-60,472 tentative rulings across 2,999 hearing days (2014-01-02 → 2026-05-04).
+60,463 tentative rulings across 2,999 hearing days (2014-01-02 → 2026-05-04).
 
 ### Coverage
 
@@ -165,6 +164,7 @@ _None — all weekdays in range are accounted for._
 - **Days scanned:** 3,052 (including days the court posted no rulings)
 - **Earliest harvested:** 2014-01-01
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
+
 
 ### Gaps (0)
 
@@ -183,26 +183,27 @@ _None — all weekdays in range are accounted for._
 - **Earliest harvested:** 2025-04-08 (same as first hearing day)
 - **Latest harvested:** 2026-05-01
 
+
 ### Gaps (1)
 
 - 2025-06-16 → 2026-04-30
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 19,403 rulings &nbsp;·&nbsp; 2017-01-03 → 2026-05-04 &nbsp;·&nbsp; 1,924 hearing days &nbsp;·&nbsp; 4 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 22,145 rulings &nbsp;·&nbsp; 2017-01-03 → 2026-05-04 &nbsp;·&nbsp; 2,251 hearing days &nbsp;·&nbsp; 3 gaps</summary>
 
-19,403 tentative rulings across 1,924 hearing days (2017-01-03 → 2026-05-04).
+22,145 tentative rulings across 2,251 hearing days (2017-01-03 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 1,924 of 2,296 weekdays in range (83.8%)
-- **Days scanned:** 2,283 (including days the court posted no rulings)
+- **Hearing days with data:** 2,251 of 2,296 weekdays in range (98.0%)
+- **Days scanned:** 2,286 (including days the court posted no rulings)
 - **Earliest harvested:** 2017-01-03 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (4)
 
-- 2017-02-27 → 2017-03-01
+### Gaps (3)
+
 - 2017-03-23
 - 2017-04-14 → 2017-04-21
 - 2017-05-30 → 2017-06-01
