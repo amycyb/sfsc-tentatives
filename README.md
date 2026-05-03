@@ -110,25 +110,26 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 28,649 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 4 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 29,703 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 4 gaps</summary>
 
-28,649 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
+29,703 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
 
 ### Gaps (4)
 
-- 2020-11-10 → 2022-01-31
+- 2020-12-18 → 2022-01-31
 - 2022-02-02 → 2022-12-14
 - 2022-12-30
 - 2023-06-27 → 2023-07-06
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,975 rulings &nbsp;·&nbsp; Earliest: 2024-08-13 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,975 rulings &nbsp;·&nbsp; Earliest: 2022-02-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 2 gaps</summary>
 
-2,975 tentative rulings. Earliest: 2024-08-13. Latest: 2026-05-04.
+2,975 tentative rulings. Earliest: 2022-02-02. Latest: 2026-05-04.
 
-### Gaps (1)
+### Gaps (2)
 
+- 2022-03-14 → 2024-08-12
 - 2024-10-08
 
 </details>
@@ -143,22 +144,15 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 14,816 rulings &nbsp;·&nbsp; Earliest: 2020-01-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 11 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 14,938 rulings &nbsp;·&nbsp; Earliest: 2020-01-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 4 gaps</summary>
 
-14,816 tentative rulings. Earliest: 2020-01-02. Latest: 2026-05-04.
+14,938 tentative rulings. Earliest: 2020-01-02. Latest: 2026-05-04.
 
-### Gaps (11)
+### Gaps (4)
 
 - 2020-01-24 → 2020-01-27
 - 2020-01-29 → 2020-01-30
-- 2020-04-10
-- 2020-04-14
-- 2020-04-16
-- 2020-04-20
-- 2020-04-22
-- 2020-04-24 → 2020-06-16
-- 2021-03-04 → 2021-03-15
-- 2021-03-18
-- 2021-03-23
+- 2020-05-22 → 2020-06-16
+- 2021-03-04
 
 </details>
