@@ -129,6 +129,33 @@ function detectCaptchaChallenge() {
 // Returns null when none of these fire — the caller (popup.js's
 // detectDepartment) then falls back to a tab-specific cached value
 // rather than misfiling scrapes under '302'.
+// Dept 304 hosts two sub-calendars — Asbestos Law & Motion and Asbestos
+// Discovery — heard in the same courtroom by the same judge but on
+// different days. Both kinds of ruling are "department 304" but the
+// extension needs to track scanned dates separately (otherwise scraping
+// one sub-calendar would mark a date as done for the other), and the
+// data browser tags rulings on the discovery sub-calendar with a
+// 🔍 Discovery badge.
+//
+// Returns 'discovery' | 'law-and-motion' | null (null = not a 304 page,
+// or a 304 page whose heading didn't pin down which sub-calendar).
+function detectAsbestosKind() {
+  // The user-confirmed page-header phrasings are
+  //   "Asbestos Discovery, Department 304"
+  //   "Asbestos Law & Motion, Department 304"
+  // We look at every heading and the first heading that contains "Asbestos"
+  // wins; whether it also has "Discovery" or "Law & Motion" decides the kind.
+  const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  for (const el of headings) {
+    const t = el.textContent || '';
+    if (!/\bAsbestos\b/i.test(t)) continue;
+    if (/\bDiscovery\b/i.test(t))                                    return 'discovery';
+    if (/\bLaw\s*(?:&|and|&amp;)\s*Motion\b/i.test(t))               return 'law-and-motion';
+    return null; // ambiguous Asbestos heading; let the caller fall back.
+  }
+  return null;
+}
+
 function detectPageDepartment() {
   const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
   for (const el of headings) {
@@ -217,6 +244,10 @@ function scrape() {
   const reportedTotal = totalMatch ? parseInt(totalMatch[1]) : null;
 
   const department = detectPageDepartment();
+  // Sub-calendar tag for Dept 304 only. The wrapper carries this through to
+  // the JSON the extension commits; ingest.py records it as a parquet column
+  // and the data browser renders the 🔍 Discovery badge from it.
+  const calendarKind = department === '304' ? detectAsbestosKind() : null;
 
   const rulings = [];
   let current = {};
@@ -262,6 +293,7 @@ function scrape() {
   if (reportedTotal === 0 && rulings.length > 0) {
     return {
       department,
+      calendar_kind:  calendarKind,
       scraped_at:     new Date().toISOString(),
       source_url:     window.location.href,
       reported_total: 0,
@@ -271,6 +303,7 @@ function scrape() {
 
   return {
     department,
+    calendar_kind:  calendarKind,
     scraped_at:     new Date().toISOString(),
     source_url:     window.location.href,
     reported_total: reportedTotal,
