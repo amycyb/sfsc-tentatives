@@ -1116,7 +1116,10 @@ document.addEventListener('DOMContentLoaded', _renderErrorBanner);
 // civil-law (Dept 302) ruleset and a generalised contestation regex.
 
 // Motion-type rules. Order matters — first match wins.
-// Each rule: [test fn, type label, optional subtype fn for Compel Discovery].
+// Each rule: [test fn, type (string OR fn returning string-or-null),
+//             optional subtype fn]. A function-typed second slot lets
+// a single rule dispatch to multiple motion types (used by the
+// Compel-family rule, see compelMotionType).
 const CIVIL_LAW_MOTION_RULES = [
   [t => /\banti[-\s]?slapp\b|\bccp\s*425\.16\b|\b425\.16\b|\bspecial\s+motion\s+to\s+strike\b/i.test(t),
     'Special Motion to Strike (CCP 425.16/Anti-SLAPP)'],
@@ -1143,30 +1146,32 @@ const CIVIL_LAW_MOTION_RULES = [
   [t => /\bdeem(?:ed|ing)?\b[\s\S]*?\badmit(?:ted)?\b/i.test(t)
      || /\b(?:order\s+)?establish(?:ing)?\s+admissions?\b/i.test(t),
     'Deem RFAs Admitted'],
-  // Reopen-discovery is a dedicated CCP § 2024.050 motion — bucket it
-  // with the rest of the discovery family before the generic Compel
-  // catch-all, which would otherwise pull "compel further responses
-  // and reopen discovery" captions in.
-  [t => /\breopen(?:ing)?\s+(?:of\s+)?discovery\b/i.test(t), 'Compel Discovery', () => 'Reopen Discovery'],
-  // Independent / Mental Medical Exam motions (CCP § 2032.020) — also
-  // discovery, also pre-empted before the Compel catch-all so the
-  // examination-specific subtype wins.
+  // Reopen-discovery is a dedicated CCP § 2024.050 motion. Top-level
+  // type in the Discovery category (no longer wrapped under "Compel
+  // Discovery"). Pre-empted before the generic Compel-family rule so
+  // a caption like "Compel Further Responses And Reopen Discovery"
+  // routes here rather than to Compel Further Responses.
+  [t => /\breopen(?:ing)?\s+(?:of\s+)?discovery\b/i.test(t), 'Reopen Discovery'],
+  // Independent / Mental / Medical Exam motions (CCP § 2032.020) —
+  // also discovery, also a top-level type.
   [t => /\b(?:mental|physical|independent\s+medical)\s+examination\b|\bime\b/i.test(t),
-    'Compel Discovery', () => 'Mental / Medical Examination'],
+    'Mental / Medical Examination'],
   // Discovery Referee appointment / report — a discovery-specific
-  // tooling motion (CCP § 639). Routes to Compel Discovery with a
-  // dedicated subtype so the popup nests it cleanly.
+  // tooling motion (CCP § 639).
   [t => /\bdiscovery\s+referee\b|\breport\s+of\s+(?:discovery\s+)?referee\b|\bappointing\s+(?:judge|referee)\b/i.test(t),
-    'Compel Discovery', () => 'Referee'],
-  // Loosen "compel" to also catch the gerund / past-tense / plural —
-  // captions like "Order Compelling Further Responses" used to fall
-  // through to Miscellaneous because the original `\bcompel\b`
-  // required the bare verb form. Also catch the bare "DISCOVERY"
-  // calendar headings and "Extending Discovery Cutoff" framings.
+    'Discovery Referee'],
+  // Compel-family motions (CCP §§ 2025 – 2034). Each substantive
+  // subject (further responses, deposition, production, etc.) is its
+  // own motion type via compelMotionType — see that function for the
+  // dispatch table. Captions that mention "compel" but no specific
+  // subject land in 'Compel (other)'; if "compel" appears with
+  // "arbitration" the rule yields null so the more specific Compel
+  // Arbitration rule fires next. Also matches the bare "DISCOVERY"
+  // calendar tag and discovery-cutoff motions.
   [t => /\bcompel(?:ling|s|led)?\b/i.test(t)
      || /^\s*discovery\s*$/i.test(t)
-     || /\bdiscovery\s+cutoff\b|\breopening\s+(?:of\s+)?discovery\b/i.test(t),
-    'Compel Discovery', compelSubtype],
+     || /\bdiscovery\s+cutoff\b/i.test(t),
+    compelMotionType],
   // Quash matchers loosened to also catch the gerund form ("Order
   // Quashing Subpoena…") — the audit found ~60 captions in Misc that
   // used "quashing" instead of "quash" and the original rule didn't
@@ -1472,9 +1477,9 @@ const ALL_MOTION_RULES = [
 //     and probate sale-of-real-property petitions).
 //   • Class Action — certification.
 //   • Writ — writ-of-mandate/prohibition petitions (CCP § 1085 / § 1094.5).
-//   • Sanctions — standalone sanctions motions (NOT discovery sanctions,
-//     which fall under Discovery via "Compel Discovery" → "Sanctions"
-//     subtype).
+//   • Sanctions — standalone sanctions motions (discovery sanctions
+//     bucket separately under one of the Compel-family Discovery
+//     motion types when they're framed as a compel motion).
 //   • Fees & Costs — attorneys-fees, cost-bill motions.
 //   • Probate — accountings, letters, conservatorships, trustee
 //     petitions (Dept 204's vocabulary).
@@ -1488,7 +1493,22 @@ const MOTION_CATEGORY = {
   'Summary Judgment / Adjudication':                   'Dispositive',
   'Judgment on the Pleadings':                         'Pleadings',
   'Compel Arbitration':                                'Arbitration',
-  'Compel Discovery':                                  'Discovery',
+  // Compel-family motion types. The old design wrapped them all under
+  // "Compel Discovery" with a subtype; per the user's request each is
+  // its own motion type, and the umbrella "Compel Discovery" type is
+  // gone. All members of the Discovery category.
+  'Compel Further Responses':                          'Discovery',
+  'Compel Deposition':                                 'Discovery',
+  'Compel Production':                                 'Discovery',
+  'Compel Interrogatories':                            'Discovery',
+  'Compel RFAs':                                       'Discovery',
+  'Compel Subpoena Compliance':                        'Discovery',
+  'Compel Initial Responses':                          'Discovery',
+  'Compel (other)':                                    'Discovery',
+  // Promoted from Compel Discovery subtypes to their own motion types.
+  'Reopen Discovery':                                  'Discovery',
+  'Mental / Medical Examination':                      'Discovery',
+  'Discovery Referee':                                 'Discovery',
   'Quash Subpoena':                                    'Discovery',
   'Quash Service / Jurisdiction':                      'Pleadings',
   'Protective Order':                                  'Discovery',
@@ -1614,18 +1634,26 @@ function categoryGlyph(category) {
   return CATEGORY_GLYPHS[category] || CATEGORY_GLYPHS['Other'];
 }
 
-function compelSubtype(t) {
+// Returns the specific Compel-family motion type a caption falls
+// under. The old design wrapped all of these under "Compel Discovery"
+// with this function returning a subtype; per the user's request
+// each subtype is now its own top-level motion type, all members of
+// the Discovery category. Returning null means "this caption mentions
+// 'compel' but the substantive motion is something else" (e.g.
+// "Compel Arbitration"); the rule loop continues so the more
+// specific Arbitration rule fires.
+function compelMotionType(t) {
   if (/\barbitration\b/i.test(t)) return null; // handled by Compel Arbitration
   if (/\bfurther\b.*\b(?:response|production|interrog|admission|document)\b/i.test(t)
       || /\bfurther responses?\b/i.test(t))
-    return 'Further Responses';
-  if (/\bdeposition\b|\bpmq\b|\bpmk\b|\bperson most\b/i.test(t)) return 'Deposition';
-  if (/\b(?:document )?production\b|\bproduce\s+documents?\b/i.test(t)) return 'Production';
-  if (/\binterrogator\w+\b/i.test(t)) return 'Interrogatories';
-  if (/\brequests?\s+for\s+admission|\brfa\b|\brfas\b/i.test(t)) return 'Requests for Admission';
-  if (/\bsubpoena\b/i.test(t)) return 'Subpoena Compliance';
-  if (/\bresponses?\s+to\b/i.test(t)) return 'Initial Responses';
-  return 'Other';
+    return 'Compel Further Responses';
+  if (/\bdeposition\b|\bpmq\b|\bpmk\b|\bperson most\b/i.test(t)) return 'Compel Deposition';
+  if (/\b(?:document )?production\b|\bproduce\s+documents?\b/i.test(t)) return 'Compel Production';
+  if (/\binterrogator\w+\b/i.test(t)) return 'Compel Interrogatories';
+  if (/\brequests?\s+for\s+admission|\brfa\b|\brfas\b/i.test(t)) return 'Compel RFAs';
+  if (/\bsubpoena\b/i.test(t)) return 'Compel Subpoena Compliance';
+  if (/\bresponses?\s+to\b/i.test(t)) return 'Compel Initial Responses';
+  return 'Compel (other)';
 }
 
 // Strip joinder framing so "Joinder in Motion to Bifurcate" classifies
@@ -1655,8 +1683,21 @@ function classifyMotion(cm) {
   const probe = stripJoinderFraming(cm) || cm;
   for (const rule of ALL_MOTION_RULES) {
     if (rule[0](probe)) {
+      // A rule's type field can be a string (most rules) or a function
+      // that returns the type given the caption (used by the
+      // Compel-family rule to dispatch into Compel Further Responses /
+      // Compel Deposition / etc. without having to repeat the outer
+      // "compel" regex in every variant). A function returning null
+      // means "skip this rule, the right type lives further down" —
+      // e.g. "Compel Arbitration" should hit the Arbitration rule, not
+      // the Compel-family one.
+      let type = rule[1];
+      if (typeof type === 'function') {
+        type = type(probe);
+        if (!type) continue;
+      }
       const sub = rule[2] ? rule[2](probe) : null;
-      return { type: rule[1], subtype: sub };
+      return { type, subtype: sub };
     }
   }
   return { type: 'Miscellaneous', subtype: null };
@@ -4422,11 +4463,11 @@ async function uniqueValuesFor(col) {
     // Two-level: each Motion Category as parent, with the Motion Types
     // that roll up into that category nested beneath. The user can
     // check a parent (matches every type under it) or a specific child
-    // ("Discovery → Compel Discovery"). Children get `child: true` +
+    // ("Discovery ⊂ Compel Production"). Children get `child: true` +
     // a `parent` pointer so the popup renderer indents them under
-    // the right parent. The motion-subtype layer (e.g. Compel Discovery
-    // → Production) doesn't appear here — it's available through
-    // "+ Add filter" → "Motion Subtype" for users who need it.
+    // the right parent. The motion-subtype layer doesn't appear here —
+    // it's available through "+ Add filter" → "Motion Subtype" for
+    // users who need it.
     const cmCounts = (await conn.query(
       `SELECT department, calendar_matter, COUNT(*) n FROM data
        GROUP BY department, calendar_matter`)).toArray();
