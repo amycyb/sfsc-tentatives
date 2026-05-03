@@ -315,18 +315,21 @@
     <button id="diag-btn" data-tip="Show debug info about the SFSC page (which date input was found, form action URL, submit button text). Useful if SFSC changes their HTML." style="background:#f5f5f5;color:#444;font-size:0.75rem;font-weight:400;padding:0.25rem">Diagnose page</button>
 
     <div id="bulk-section">
-      <button id="auto-scan-btn" data-tip="Find every business day from the first archived date through today that's missing, then scrape them in the background." disabled>Scan Unscanned Pages</button>
-      <div id="scan-direction-row" data-tip="Direction the auto-scan walks the unscanned dates: forward starts with the oldest gap, backward starts with the newest." style="display:flex;gap:0.6rem;align-items:center;justify-content:center;font-size:0.72rem;color:#1a3a5c;margin:-0.3rem 0 0.55rem;">
-        <span style="color:#555">Direction:</span>
-        <label style="display:inline-flex;align-items:center;gap:0.2rem;cursor:pointer">
-          <input type="radio" name="scan-direction" value="forward" checked style="margin:0;vertical-align:middle">
-          <span>Forward (oldest first)</span>
+      <div id="scan-direction-card" data-tip="Direction the bulk scan walks the dates. Applies to both 'Scan Unscanned Pages' and 'Bulk Scrape Range'." style="background:#fff8e1;border:1px solid #ffd97a;border-radius:5px;padding:0.45rem 0.6rem;margin-bottom:0.6rem;font-size:0.78rem;color:#5b4400">
+        <div style="font-weight:700;margin-bottom:0.3rem;display:flex;align-items:center;gap:0.3rem">
+          <span style="font-size:0.85rem">📅</span>
+          <span>Scan order</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:0.4rem;padding:0.15rem 0;cursor:pointer">
+          <input type="radio" name="scan-direction" value="forward" checked style="margin:0">
+          <span>⏭ Forward — oldest unscanned first</span>
         </label>
-        <label style="display:inline-flex;align-items:center;gap:0.2rem;cursor:pointer">
-          <input type="radio" name="scan-direction" value="backward" style="margin:0;vertical-align:middle">
-          <span>Backward (newest first)</span>
+        <label style="display:flex;align-items:center;gap:0.4rem;padding:0.15rem 0;cursor:pointer">
+          <input type="radio" name="scan-direction" value="backward" style="margin:0">
+          <span>⏮ Backward — newest unscanned first</span>
         </label>
       </div>
+      <button id="auto-scan-btn" data-tip="Find every business day from the first archived date through today that's missing, then scrape them in the background. Honors the Scan order radio above." disabled>Scan Unscanned Pages</button>
       <div class="bulk-row">
         <div>
           <label>From</label>
