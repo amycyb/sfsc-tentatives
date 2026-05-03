@@ -144,9 +144,9 @@ python update-readme.py
 
 </details>
 <details>
-<summary>**Department 301** &nbsp;·&nbsp; 2,027 rulings &nbsp;·&nbsp; Latest: 2026-04-02 &nbsp;·&nbsp; 5 gaps</summary>
+<summary>**Department 301** &nbsp;·&nbsp; 2,279 rulings &nbsp;·&nbsp; Latest: 2026-04-02 &nbsp;·&nbsp; 5 gaps</summary>
 
-2,027 tentative rulings. Latest: 2026-04-02.
+2,279 tentative rulings. Latest: 2026-04-02.
 
 ### Gaps (5)
 
@@ -154,7 +154,7 @@ python update-readme.py
 - 2025-08-05 → 2025-08-22
 - 2025-08-26 → 2025-09-15
 - 2025-10-21 → 2025-11-03
-- 2025-11-13 → 2026-01-08
+- 2025-11-13 → 2025-11-26
 
 </details>
 <details>
