@@ -110,15 +110,16 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 39,121 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 6 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 39,199 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 7 gaps</summary>
 
-39,121 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
+39,199 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
 
-### Gaps (6)
+### Gaps (7)
 
 - 2021-03-22 → 2021-03-30
 - 2021-04-02 → 2021-04-05
-- 2021-05-11 → 2021-09-03
+- 2021-05-11 → 2021-06-01
+- 2021-06-03 → 2021-09-03
 - 2021-11-01 → 2022-01-19
 - 2022-08-15 → 2022-08-16
 - 2022-08-31 → 2022-09-01
@@ -134,9 +135,9 @@ python update-readme.py
 - 2022-06-29 → 2022-09-21
 - 2022-11-14 → 2022-11-22
 - 2022-11-28 → 2022-12-27
-- 2023-02-03 → 2023-06-02
+- 2023-03-14 → 2023-06-02
 - 2023-06-14
-- 2023-07-03 → 2024-08-12
+- 2023-07-13 → 2024-08-12
 - 2024-10-08
 
 </details>
