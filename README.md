@@ -122,9 +122,9 @@ python update-readme.py
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,975 rulings &nbsp;·&nbsp; Earliest: 2022-02-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 6 gaps</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,999 rulings &nbsp;·&nbsp; Earliest: 2022-02-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 6 gaps</summary>
 
-2,975 tentative rulings. Earliest: 2022-02-02. Latest: 2026-05-04.
+2,999 tentative rulings. Earliest: 2022-02-02. Latest: 2026-05-04.
 
 ### Gaps (6)
 
@@ -133,7 +133,7 @@ python update-readme.py
 - 2022-11-28 → 2022-12-27
 - 2023-03-14 → 2023-06-02
 - 2023-06-14
-- 2023-08-14 → 2024-07-09
+- 2023-08-14 → 2024-04-25
 
 </details>
 <details>
@@ -147,12 +147,12 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,730 rulings &nbsp;·&nbsp; Earliest: 2019-07-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,832 rulings &nbsp;·&nbsp; Earliest: 2019-07-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 0 gaps</summary>
 
-15,730 tentative rulings. Earliest: 2019-07-01. Latest: 2026-05-04.
+15,832 tentative rulings. Earliest: 2019-07-01. Latest: 2026-05-04.
 
-### Gaps (1)
+### Gaps (0)
 
-- 2019-09-11 → 2019-09-27
+_None — all weekdays in range are accounted for._
 
 </details>
