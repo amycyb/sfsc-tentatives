@@ -110,31 +110,30 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 40,659 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 3 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 41,745 rulings &nbsp;·&nbsp; Earliest: 2020-01-06 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 3 gaps</summary>
 
-40,659 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
+41,745 tentative rulings. Earliest: 2020-01-06. Latest: 2026-05-04.
 
 ### Gaps (3)
 
 - 2021-07-09
 - 2021-07-16 → 2021-09-03
-- 2021-11-01 → 2021-12-16
+- 2021-11-01 → 2021-11-08
 
 </details>
 <details>
-<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,975 rulings &nbsp;·&nbsp; Earliest: 2022-02-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 7 gaps</summary>
+<summary><strong>Department 301 — Discovery</strong> &nbsp;·&nbsp; 2,975 rulings &nbsp;·&nbsp; Earliest: 2022-02-02 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 6 gaps</summary>
 
 2,975 tentative rulings. Earliest: 2022-02-02. Latest: 2026-05-04.
 
-### Gaps (7)
+### Gaps (6)
 
 - 2022-06-29 → 2022-09-21
 - 2022-11-14 → 2022-11-22
 - 2022-11-28 → 2022-12-27
 - 2023-03-14 → 2023-06-02
 - 2023-06-14
-- 2023-08-14 → 2024-08-12
-- 2024-10-08
+- 2023-08-14 → 2024-07-09
 
 </details>
 <details>
@@ -148,12 +147,12 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,552 rulings &nbsp;·&nbsp; Earliest: 2019-07-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 15,730 rulings &nbsp;·&nbsp; Earliest: 2019-07-01 &nbsp;·&nbsp; Latest: 2026-05-04 &nbsp;·&nbsp; 1 gap</summary>
 
-15,552 tentative rulings. Earliest: 2019-07-01. Latest: 2026-05-04.
+15,730 tentative rulings. Earliest: 2019-07-01. Latest: 2026-05-04.
 
 ### Gaps (1)
 
-- 2019-09-11 → 2019-11-04
+- 2019-09-11 → 2019-09-27
 
 </details>
