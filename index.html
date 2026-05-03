@@ -1542,54 +1542,114 @@ function lookupOutcome(rulingText) {
   return cls;
 }
 
-// Department → admin-block boundary regex. The substantive ruling ends just
-// before this phrase; everything from there onward is contestation /
-// remote-appearance / boilerplate. Add new depts as their phrasing is
-// observed; depts without an entry fall back to a generalised regex covering
-// the most common SFSC contestation language.
-const ADMIN_BOUNDARIES = {
-  '302': /\s*Any\s+part(?:y|ies)\s+who\s+contests?\s+a\s+tentative\s+ruling/i,
-};
-const ADMIN_BOUNDARY_DEFAULT = new RegExp(
-  '\\s*(?:' +
-    'Any\\s+part(?:y|ies)\\s+who\\s+contests?\\s+a\\s+tentative\\s+ruling|' +
-    'If\\s+(?:a|any|the)\\s+part(?:y|ies)\\s+(?:intends|wishes|wants|desires)\\s+to\\s+contest|' +
-    'To\\s+contest\\s+(?:the|this)\\s+tentative|' +
-    'Any\\s+part(?:y|ies)\\s+(?:intending|wishing)\\s+to\\s+(?:oppose|contest)|' +
-    'Tentative\\s+ruling[s]?\\s+will\\s+become\\s+(?:the\\s+)?final|' +
-    'Pursuant\\s+to\\s+(?:CRC|California\\s+Rule(?:s)?\\s+of\\s+Court|Local\\s+Rule)' +
-  ')',
-  'i'
-);
+// Sentence-level admin classification. The previous "find the boundary
+// phrase, slice the ruling at it" approach broke whenever the SFTC
+// site interspersed admin language between two substantive halves —
+// for example, a Dept 501 ruling that runs:
+//
+//     <Line 1.2 substantive ...> <admin block> <Line 1.1 substantive ...> <admin block>
+//
+// would treat everything from the first admin phrase onward as admin,
+// burying the Line 1.1 substantive holding in the admin column. Now
+// every sentence is classified independently against a list of
+// admin-boilerplate patterns; matches go to the admin / courtcall
+// columns, the rest stays substantive. The substantive output is
+// re-joined in original order so a multi-sub-ruling row reads as
+// "Line 1.2 holding. Line 1.1 holding." with all admin moved to the
+// admin column even when it was sandwiched between them.
 
-function adminBoundary(dept) {
-  return ADMIN_BOUNDARIES[dept] || ADMIN_BOUNDARY_DEFAULT;
+// Each pattern is a phrase that's almost exclusively boilerplate — a
+// court order's substantive text generally doesn't say "Webinar ID:"
+// or "Notice of contesting a tentative ruling shall be provided".
+// Anchored to recognisable SFTC phrasing so a substantive sentence
+// that happens to mention "the parties" doesn't false-match.
+const ADMIN_SENTENCE_PATTERNS = [
+  // Contestation procedure
+  /\bany\s+part(?:y|ies)\s+who\s+contests?\s+a\s+tentative\s+ruling\b/i,
+  /\bif\s+(?:a|any|the)\s+part(?:y|ies)\s+(?:intends|wishes|wants|desires)\s+to\s+contest\b/i,
+  /\bto\s+contest\s+(?:the|this)\s+tentative\b/i,
+  /\bany\s+part(?:y|ies)\s+(?:intending|wishing)\s+to\s+(?:oppose|contest)\b/i,
+  /\btentative\s+ruling[s]?\s+will\s+become\s+(?:the\s+)?final\b/i,
+  /\bnotice\s+(?:of\s+)?contesting\s+a\s+tentative\b/i,
+  /\bnotice\s+of\s+intent(?:ion)?\s+to\s+(?:appear|contest)\b/i,
+  /\bwithout\s+argument,?\s+the\s+portion/i,
+  // Procedural / appearance instructions
+  /\bparties\s+may\s+appear\s+(?:in[\s-]?person|telephonically|via\s+zoom|remotely)/i,
+  /\bparties\s+who\s+intend(?:\s+to)?\s+appear/i,
+  /\bparties\s+(?:must|shall)\s+give\s+notice\b/i,
+  /\bparties\s+who\s+intend\s+to\s+appear\s+at\s+the\s+hearing\b/i,
+  /\ba\s+party\s+may\s+not\s+argue\s+at\s+the\s+hearing\b/i,
+  /\bopposing\s+party\s+(?:does\s+not|is\s+not\s+so\s+notified)/i,
+  /\bface\s+coverings\s+are\s+(?:optional|required)/i,
+  /\bpursuant\s+to\s+(?:CRC|California\s+Rule(?:s)?\s+of\s+Court|Local\s+Rule)/i,
+  // Order-preparation boilerplate
+  /\bcounsel\s+for\s+the\s+prevailing\s+party\b.{0,40}\b(?:prepare|submit|propose)\b/i,
+  /\bprevailing\s+party\s+(?:is\s+(?:required|directed)|shall|must)\s+(?:to\s+)?(?:prepare|submit|lodge)\b/i,
+  /\bproposed\s+order\s+(?:repeating|that\s+repeats|repeats)\s+verbatim\b/i,
+  /\blodge\s+with\s+the\s+clerk\s+(?:in\s+)?(?:dept|department)\s*\d+\b/i,
+  /\bsubmit\s+a\s+proposed\s+order\b/i,
+  // Court reporter info
+  /\bthe\s+court\s+(?:no\s+longer\s+)?provides?\s+a\s+court\s+reporter\b/i,
+  /\bparties\s+may\s+retain\s+(?:their\s+)?own\s+(?:court\s+)?reporter\b/i,
+  /\ba\s+retained\s+reporter\s+must\s+be\s+a\s+california\s+certified/i,
+  /\bif\s+a\s+csr\s+is\s+being\s+retained\b/i,
+  /\bcalifornia\s+certified\s+(?:shorthand\s+)?reporter\b/i,
+  // Remote-appearance / Zoom / dial-in (also flagged for COURTCALL_RE)
+  /\bzoom\s+(?:meeting|webinar|video|id)/i,
+  /\bvideoconference\b/i,
+  /\bcourtcall\b/i,
+  /\bappear\s+(?:in[\s-]?person|telephonically|via\s+zoom|remotely)\b/i,
+  /\bwebinar\s+id\b/i,
+  /\bmeeting\s+id\b/i,
+  /\bphone\s+dial\s+in\b/i,
+  /\bdial[\s-]?in\s+(?:number|info|id|info\s+for)/i,
+  /\bsfsuperiorcourt\.org\b/i,
+  /\bmicrosoft\s+teams\b/i,
+  /\bwebex\b/i,
+  // Email contest addresses
+  /\b[\w.+-]+@sftc\.org\b/i,
+  // Time-based filing deadline boilerplate
+  /\bno\s+later\s+than\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+(?:the\s+)?(?:court\s+)?day\s+(?:before|prior\s+to)/i,
+  /\bby\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+(?:the\s+)?(?:court\s+)?day\s+(?:before|prior\s+to)/i,
+  /\bby\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+on\s+the\s+(?:court\s+)?day\s+(?:before|prior\s+to)/i,
+];
+
+// CourtCall / Zoom / remote-appearance prose is a SUBSET of admin —
+// segregated into its own column so the modal can label it separately.
+// Matches against every sentence flagged as admin; non-courtcall admin
+// goes to the admin column, courtcall sentences go to courtcall.
+const COURTCALL_RE = /(?:CourtCall|9:00\s*a\.m\.\s+Discovery\s+calendar|appear\s+remotely|appear\s+(?:in[\s-]?person|telephonically|via\s+zoom)|\bZoom\b|videoconference|sfsuperiorcourt\.org|telephonic\s+appearance|remote\s+appearance|microsoft\s+teams\b|webex\b|webinar\s+id\b|meeting\s+id\b|dial[\s-]?in\b|phone\s+dial\s+in)/i;
+
+function isAdminSentence(s) {
+  return ADMIN_SENTENCE_PATTERNS.some(p => p.test(s));
 }
-
-// CourtCall / Zoom / remote-appearance prose lives inside the admin block.
-// Generic — same vendors and meeting-platform names regardless of dept.
-const COURTCALL_RE = /(?:CourtCall|9:00\s*a\.m\.\s+Discovery\s+calendar|appear\s+remotely|Zoom\b|videoconference|sfsuperiorcourt\.org|telephonic\s+appearance|remote\s+appearance|microsoft\s+teams\b|webex\b)/i;
 
 function splitRuling(full, dept) {
   if (!full) return { ruling: '', admin: '', courtcall: '' };
-  const m = adminBoundary(dept).exec(full);
-  let substantive = full, adminBlock = '';
-  if (m) {
-    substantive = full.slice(0, m.index).replace(/[\s.,;:]+$/, '');
-    adminBlock  = full.slice(m.index).trim();
-  }
-  // Inside admin, peel off the CourtCall paragraph if present.
-  let admin = adminBlock, courtcall = '';
-  if (adminBlock && COURTCALL_RE.test(adminBlock)) {
-    const sentences = adminBlock.split(/(?<=[.!?])\s+(?=[A-Z(])/);
-    const cc = [], rest = [];
-    for (const s of sentences) {
-      (COURTCALL_RE.test(s) ? cc : rest).push(s);
+  // Split on sentence boundaries that are followed by a capital letter
+  // or open paren — same heuristic as before, applied to the whole
+  // ruling now rather than just the post-boundary admin block. SFTC
+  // captions don't use abbreviated periods (e.g., "U.S.A.") often
+  // enough to be a problem; the few cases where a sentence accidentally
+  // splits mid-phrase still classify each fragment correctly.
+  const sentences = full.split(/(?<=[.!?])\s+(?=[A-Z(=])/);
+  const subOut = [];
+  const adminOut = [];
+  const courtcallOut = [];
+  for (const s of sentences) {
+    if (!s.trim()) continue;
+    if (isAdminSentence(s)) {
+      if (COURTCALL_RE.test(s)) courtcallOut.push(s);
+      else                      adminOut.push(s);
+    } else {
+      subOut.push(s);
     }
-    courtcall = cc.join(' ').trim();
-    admin     = rest.join(' ').trim();
   }
-  return { ruling: substantive.trim(), admin, courtcall };
+  return {
+    ruling:    subOut.join(' ').trim().replace(/[\s.,;:]+$/, '.'),
+    admin:     adminOut.join(' ').trim(),
+    courtcall: courtcallOut.join(' ').trim(),
+  };
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -4336,6 +4396,62 @@ function renderFilterRows() {
 }
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
+// Outcomes that mean the motion was deferred rather than decided on the
+// merits — its substantive ruling lives at the next hearing. The outcome
+// pill becomes a link to that next hearing when one's findable in the
+// loaded data.
+const IN_FLIGHT_OUTCOMES = new Set([
+  'Continued', 'Off calendar', 'Transferred', 'Withdrawn',
+  'Hearing required',  // not deferred per se, but the next event is the hearing itself
+]);
+
+// Caption normaliser used by findNextHearing to match a row's caption
+// against later rulings on the same case. Strips part-suffix annotations
+// and joinder framing — same admin tags consolidate_splits already
+// strips on ingest — and lowercases for case-insensitive comparison.
+function normalizeMotionCaption(cm) {
+  if (!cm) return '';
+  let out = cm.toLowerCase();
+  out = out.replace(/\s*\(?\s*(?:part|pt)\.?\s+\d+\s+(?:of|\/)\s+\d+\b[^)]*\)?\s*\.?\s*$/gi, '');
+  out = out.replace(/\s*\([^)]*tentative\s+ruling[^)]*\)\s*\.?\s*$/gi, '');
+  out = out.replace(/^\s*(?:notice\s+(?:of\s+)?)?joinder\s+(?:in|to)\s+/i, '');
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+// Find the next hearing of THIS motion — same case, later date, similar
+// caption. The target row is what gets opened when the user clicks the
+// in-flight outcome pill. "Similar" = normalised captions match exactly,
+// or one substring-contains the other with a length ratio above 0.5
+// (keeps "Motion to Compel" from matching every later "Motion to Compel
+// X" while still tolerating SFTC's caption drift across reschedulings).
+async function findNextHearing(r) {
+  if (!conn || !r.case_number || !r.court_date) return null;
+  const normCm = normalizeMotionCaption(r.calendar_matter);
+  if (!normCm) return null;
+  const rows = (await conn.query(`
+    SELECT department, case_number, case_title, court_date, hearing_time,
+           calendar_matter, judge, judge_canonical, judge_subtype,
+           ruling, row_hash
+    FROM data
+    WHERE case_number = '${escapeSql(r.case_number)}'
+      AND court_date > '${escapeSql(r.court_date)}'
+    ORDER BY court_date ASC
+    LIMIT 30
+  `)).toArray();
+  for (const row of rows) {
+    if (row.row_hash === r.row_hash) continue;
+    const otherNorm = normalizeMotionCaption(row.calendar_matter);
+    if (!otherNorm) continue;
+    if (otherNorm === normCm) return row;
+    if (otherNorm.includes(normCm) || normCm.includes(otherNorm)) {
+      const ratio = Math.min(normCm.length, otherNorm.length)
+                  / Math.max(normCm.length, otherNorm.length);
+      if (ratio > 0.5) return row;
+    }
+  }
+  return null;
+}
+
 function openModal(r) {
   $('modal-title').textContent = r.case_title ?? '';
   const m = lookupMotion(r.department, r.calendar_matter);
@@ -4357,6 +4473,14 @@ function openModal(r) {
     o.outcome && o.outcome !== 'Other' && o.outcome !== 'Unknown' ? `→ ${o.outcome}` : null,
     o.subtype ? `· ${o.subtype}` : null,
   ].filter(Boolean);
+  // Track the outcome pill so we can mutate it into a "next hearing"
+  // link if findNextHearing returns a hit. We can't pre-resolve the
+  // next hearing synchronously (it needs a DuckDB query) so the pill
+  // initially renders as plain text and gets replaced when the
+  // promise resolves.
+  let outcomePillEl = null;
+  const outcomePillText = o.outcome && o.outcome !== 'Other' && o.outcome !== 'Unknown'
+    ? `→ ${o.outcome}` : null;
   for (const p of pills) {
     // Linkify the case-number pill so clicking it opens the SFTC
     // docket. Pills are textContent-rendered above, so the
@@ -4377,7 +4501,31 @@ function openModal(r) {
     }
     const span = document.createElement('span');
     span.className = 'pill'; span.textContent = p;
+    if (outcomePillText && p === outcomePillText) outcomePillEl = span;
     meta.appendChild(span);
+  }
+  // Async: if the outcome means the motion was deferred and we can find
+  // the next hearing in the loaded data, swap the outcome pill for a
+  // clickable link that re-opens the modal on the next-hearing row.
+  if (outcomePillEl && IN_FLIGHT_OUTCOMES.has(o.outcome)) {
+    findNextHearing(r).then(next => {
+      if (!next) return;
+      // Bail if the modal has already moved on (user closed or
+      // navigated to a different ruling).
+      if (!outcomePillEl.isConnected) return;
+      const a = document.createElement('a');
+      a.className = 'pill';
+      a.href = '#';
+      a.style.textDecoration = 'underline';
+      a.style.cursor = 'pointer';
+      a.title = `Continued / deferred. Next hearing of this motion: ${next.court_date}. Click to open.`;
+      a.textContent = `${outcomePillText} · next: ${next.court_date} →`;
+      a.addEventListener('click', ev => {
+        ev.preventDefault();
+        openModal(next);
+      });
+      outcomePillEl.replaceWith(a);
+    }).catch(() => { /* swallow — outcome pill stays plain */ });
   }
   $('modal-motion').textContent = r.calendar_matter ?? '';
   $('modal-ruling').textContent = sp.ruling;
