@@ -697,6 +697,28 @@
       text-transform: uppercase; letter-spacing: 0.04em;
       color: #888; margin: 0.95rem 0 0.25rem;
     }
+    /* Admin / CourtCall collapsibles — closed by default so the modal
+       opens fast and the substantive ruling reads first. The actual
+       text lives in a sidecar parquet that's only fetched when one
+       of the sections is expanded. <summary> renders as the section
+       label, with a triangle disclosure indicator native to <details>. */
+    .extras-section { margin-top: 0.5rem; display: none; }
+    .extras-section.is-available { display: block; }
+    .extras-section > summary {
+      cursor: pointer; user-select: none; outline: none;
+      list-style: revert; /* keep the native ▸ marker */
+      padding: 0.25rem 0;
+    }
+    .extras-section > summary:hover { color: #1a3a5c; }
+    .extras-section[open] > summary { color: #1a3a5c; }
+    .extras-section .admin-notes,
+    .extras-section .courtcall {
+      margin-top: 0.3rem;
+    }
+    .extras-loading {
+      font-style: italic; color: #888; font-size: 0.78rem;
+      padding: 0.4rem 0;
+    }
     .modal-close {
       position: absolute; top: 0.6rem; right: 0.7rem;
       width: 26px; height: 26px;
@@ -967,10 +989,14 @@
     <div class="meta" id="modal-meta"></div>
     <div class="motion" id="modal-motion"></div>
     <div class="ruling" id="modal-ruling"></div>
-    <div class="section-label" id="modal-admin-label" style="display:none">Administrative notes</div>
-    <div class="admin-notes" id="modal-admin"></div>
-    <div class="section-label" id="modal-cc-label" style="display:none">Remote-appearance / CourtCall</div>
-    <div class="courtcall" id="modal-cc"></div>
+    <details class="extras-section" id="modal-admin-details">
+      <summary class="section-label">Administrative notes</summary>
+      <div class="admin-notes" id="modal-admin"></div>
+    </details>
+    <details class="extras-section" id="modal-cc-details">
+      <summary class="section-label">Remote-appearance / CourtCall</summary>
+      <div class="courtcall" id="modal-cc"></div>
+    </details>
     <div class="modal-footer">
       <span class="ruling-id" id="modal-ruling-id" title="Unique ruling ID (SHA-1 of case # + date + ruling text)"></span>
       <a class="btn report-btn" id="modal-report" target="_blank" rel="noopener">🐞 Report Issue</a>
@@ -5070,14 +5096,163 @@ function openModal(r) {
   }
   $('modal-motion').textContent = r.calendar_matter ?? '';
   $('modal-ruling').textContent = sp.ruling;
-  $('modal-admin').textContent  = sp.admin;
-  $('modal-cc').textContent     = sp.courtcall;
-  $('modal-admin-label').style.display = sp.admin ? '' : 'none';
-  $('modal-admin').style.display       = sp.admin ? '' : 'none';
-  $('modal-cc-label').style.display    = sp.courtcall ? '' : 'none';
-  $('modal-cc').style.display          = sp.courtcall ? '' : 'none';
+  // Admin / CourtCall live in a sidecar parquet that's only fetched
+  // when the user expands one of the collapsibles below the ruling.
+  // Falls back to whatever splitRuling extracted from the ruling text
+  // itself when the dataset hasn't been re-ingested with the split
+  // columns yet.
+  setupExtrasCollapsibles(r, sp);
   populateBugReport(r, m, o, sp);
   $('overlay').classList.add('open');
+}
+
+// Per-dept cache of the extras parquet (admin + courtcall, keyed by
+// row_hash). Promises so concurrent modal-opens during a fetch share
+// the same in-flight request.
+const _extrasCache = new Map();   // dept → Promise<Map<row_hash, {admin, courtcall}>>
+const _extrasMissing = new Set(); // dept ids whose extras file 404'd
+
+async function loadExtrasForDept(dept) {
+  if (!dept) return new Map();
+  if (_extrasMissing.has(dept)) return new Map();
+  if (_extrasCache.has(dept)) return _extrasCache.get(dept);
+  const promise = (async () => {
+    const url = `./data/tentatives-${dept}-extras.parquet`;
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) {
+      // Older datasets may not have an extras file. Mark and return
+      // empty — the UI then gracefully shows "no admin / no
+      // courtcall" rather than spinning.
+      _extrasMissing.add(dept);
+      return new Map();
+    }
+    const buf  = new Uint8Array(await res.arrayBuffer());
+    const fname = `dept-${dept}-extras.parquet`;
+    await db.registerFileBuffer(fname, buf);
+    const tbl = `extras_${dept}`;
+    await conn.query(`CREATE OR REPLACE TABLE ${tbl} AS SELECT * FROM '${fname}'`);
+    const rs  = (await conn.query(
+      `SELECT row_hash, ruling_admin, ruling_courtcall FROM ${tbl}`)).toArray();
+    const map = new Map();
+    for (const r of rs) {
+      map.set(r.row_hash, {
+        admin:     r.ruling_admin     || '',
+        courtcall: r.ruling_courtcall || '',
+      });
+    }
+    return map;
+  })();
+  _extrasCache.set(dept, promise);
+  // If the fetch fails outright, drop the cache so a subsequent
+  // modal-open retries instead of replaying the rejection.
+  promise.catch(err => {
+    console.error('extras fetch failed', err);
+    _extrasCache.delete(dept);
+  });
+  return promise;
+}
+
+function setupExtrasCollapsibles(r, fallback) {
+  const adminDetails = $('modal-admin-details');
+  const ccDetails    = $('modal-cc-details');
+  // Reset state from any prior open.
+  adminDetails.classList.remove('is-available');
+  ccDetails.classList.remove('is-available');
+  adminDetails.removeAttribute('open');
+  ccDetails.removeAttribute('open');
+
+  const adminBox = $('modal-admin');
+  const ccBox    = $('modal-cc');
+  adminBox.textContent = '';
+  ccBox.textContent    = '';
+
+  // splitRuling-derived fallback: legacy parquets that haven't been
+  // re-ingested still carry admin text inline in the ruling column.
+  // splitRuling extracts it client-side and we use that immediately
+  // — no network request needed in that branch.
+  const fallbackAdmin = (fallback && fallback.admin)     || '';
+  const fallbackCC    = (fallback && fallback.courtcall) || '';
+
+  // The extras parquet is the canonical source for new ingests. If
+  // it's already cached for this dept, use the lookup synchronously
+  // so the user sees the section header before clicking.
+  const cachedPromise = _extrasCache.get(r.department);
+  const renderResolved = (data) => {
+    const admin = data && data.admin ? data.admin : fallbackAdmin;
+    const cc    = data && data.courtcall ? data.courtcall : fallbackCC;
+    if (admin) {
+      adminDetails.classList.add('is-available');
+      adminBox.textContent = admin;
+    }
+    if (cc) {
+      ccDetails.classList.add('is-available');
+      ccBox.textContent = cc;
+    }
+  };
+
+  // If we have a cached map already (this dept's extras have been
+  // fetched at least once), resolve immediately. Otherwise show the
+  // collapsibles optimistically and fetch on first expand.
+  if (cachedPromise) {
+    cachedPromise.then(map => {
+      // Bail if the modal moved on while we were waiting.
+      if (!adminDetails.isConnected) return;
+      renderResolved(map.get(r.row_hash));
+    }).catch(() => renderResolved(null));
+  } else {
+    // Optimistic: show both sections so the user can click. The
+    // fetch happens on first expand via the toggle handler below.
+    if (fallbackAdmin) { adminDetails.classList.add('is-available'); adminBox.textContent = fallbackAdmin; }
+    if (fallbackCC)    { ccDetails.classList.add('is-available');    ccBox.textContent = fallbackCC; }
+    adminDetails.classList.add('is-available');
+    ccDetails.classList.add('is-available');
+  }
+
+  let inflight = null;
+  function fetchOnDemand(target, kind) {
+    if (target.dataset.fetched === '1') return;
+    target.dataset.fetched = '1';
+    const box = kind === 'admin' ? adminBox : ccBox;
+    if (!box.textContent.trim()) {
+      box.innerHTML = '<div class="extras-loading">Loading…</div>';
+    }
+    inflight = inflight || loadExtrasForDept(r.department);
+    inflight.then(map => {
+      if (!target.isConnected) return;
+      const data = map.get(r.row_hash);
+      const admin = data && data.admin ? data.admin : fallbackAdmin;
+      const cc    = data && data.courtcall ? data.courtcall : fallbackCC;
+      if (kind === 'admin') {
+        if (admin) {
+          adminBox.textContent = admin;
+          adminDetails.classList.add('is-available');
+        } else {
+          adminBox.innerHTML = '<div class="extras-loading">No administrative notes for this ruling.</div>';
+        }
+      } else {
+        if (cc) {
+          ccBox.textContent = cc;
+          ccDetails.classList.add('is-available');
+        } else {
+          ccBox.innerHTML = '<div class="extras-loading">No CourtCall info for this ruling.</div>';
+        }
+      }
+    }).catch(err => {
+      const box = kind === 'admin' ? adminBox : ccBox;
+      box.innerHTML = `<div class="extras-loading">Could not load (${esc(err.message || String(err))}).</div>`;
+    });
+  }
+
+  // .ontoggle replaces the previous handler, so re-opening the modal
+  // for a different row doesn't accumulate listeners.
+  adminDetails.dataset.fetched = '';
+  ccDetails.dataset.fetched    = '';
+  adminDetails.ontoggle = () => {
+    if (adminDetails.open) fetchOnDemand(adminDetails, 'admin');
+  };
+  ccDetails.ontoggle = () => {
+    if (ccDetails.open) fetchOnDemand(ccDetails, 'courtcall');
+  };
 }
 
 // Each ruling carries a SHA-1 row_hash from ingest.py — that's our stable

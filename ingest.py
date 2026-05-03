@@ -109,6 +109,118 @@ def extract_judge(ruling_text):
 COLUMNS = ["department", "case_number", "case_title", "court_date", "hearing_time",
            "calendar_matter", "judge", "ruling", "row_hash", "calendar_kind"]
 
+# ─── Admin / CourtCall pattern set ──────────────────────────────────────────
+# Keep in sync with the ADMIN_SENTENCE_PATTERNS + COURTCALL_RE in
+# index.html. Pre-splitting at ingest time means the per-dept parquet
+# can ship just the substantive ruling — admin / courtcall live in a
+# sidecar file the data browser only fetches when a user opens a
+# modal and expands the collapsible. That's how the dataset stays
+# under wire-budget on first load.
+_ADMIN_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [
+    # Contestation procedure
+    r'\bany\s+part(?:y|ies)\s+who\s+contests?\s+a\s+tentative\s+ruling\b',
+    r'\bif\s+(?:a|any|the)\s+part(?:y|ies)\s+(?:intends|wishes|wants|desires)\s+to\s+contest\b',
+    r'\bto\s+contest\s+(?:the|this)\s+tentative\b',
+    r'\bany\s+part(?:y|ies)\s+(?:intending|wishing)\s+to\s+(?:oppose|contest)\b',
+    r'\btentative\s+ruling[s]?\s+will\s+become\s+(?:the\s+)?final\b',
+    r'\bnotice\s+(?:of\s+)?contesting\s+a\s+tentative\b',
+    r'\bnotice\s+of\s+intent(?:ion)?\s+to\s+(?:appear|contest)\b',
+    r'\bwithout\s+argument,?\s+the\s+portion',
+    # Procedural / appearance instructions
+    r'\bparties\s+may\s+appear\s+(?:in[\s-]?person|telephonically|via\s+zoom|remotely)',
+    r'\bparties\s+who\s+intend(?:\s+to)?\s+appear',
+    r'\bparties\s+(?:must|shall)\s+give\s+notice\b',
+    r'\bparties\s+who\s+intend\s+to\s+appear\s+at\s+the\s+hearing\b',
+    r'\ba\s+party\s+may\s+not\s+argue\s+at\s+the\s+hearing\b',
+    r'\bopposing\s+party\s+(?:does\s+not|is\s+not\s+so\s+notified)',
+    r'\bface\s+coverings\s+are\s+(?:optional|required)',
+    r'\bpursuant\s+to\s+(?:CRC|California\s+Rule(?:s)?\s+of\s+Court|Local\s+Rule)',
+    r'\ball\s+attorneys?\s+(?:and\s+parties\s+)?may\s+appear\b',
+    r'\b(?:may|shall)\s+appear\s+in\s+(?:department|dept\.?)\s*\d+\b',
+    r'\b(?:8|9|10|11)\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+(?:law\s*(?:&|and)\s*motion|discovery|civil|calendar|department)\b',
+    r'\bremote\s+hearings?\s+(?:will\s+be|are)\s+conducted\b',
+    r'\bto\s+appear\s+remotely\s+at\s+the\s+hearing\b',
+    r'\bgo\s+to\s+the\s+court\'?s?\s+website\b',
+    r'\bdial\s+the\s+(?:corresponding|appropriate)\s+phone\s+number\b',
+    r'\bnavigate\s+to\s+["\']?tentative\s+rulings',
+    r'\bclick\s+on\s+the\s+(?:appropriate|corresponding)\s+(?:link|number)\b',
+    r'\bemail\s+shall\s+include\s+the\b',
+    r'\b(?:subject|text)\s+(?:line\s+)?of\s+the\s+email\b',
+    r'\bsend\s+an?\s+email\s+to\b',
+    r'\bcopy\s+to\s+all\s+(?:other\s+)?parties\s+by\s+\d',
+    r'\bportion\(s\)\s+of\s+the\s+tentative\s+ruling\s+that\s+the\s+party\s+contests',
+    r'\bof\s+the\s+attorney\s+or\s+party\s+who\s+will\s+appear\b',
+    # Order-preparation boilerplate
+    r'\bcounsel\s+for\s+the\s+prevailing\s+party\b.{0,40}\b(?:prepare|submit|propose)\b',
+    r'\bprevailing\s+party\s+(?:is\s+(?:required|directed)|shall|must)\s+(?:to\s+)?(?:prepare|submit|lodge)\b',
+    r'\bproposed\s+order\s+(?:repeating|that\s+repeats|repeats)\s+verbatim\b',
+    r'\blodge\s+with\s+the\s+clerk\s+(?:in\s+)?(?:dept|department)\s*\d+\b',
+    r'\bsubmit\s+a\s+proposed\s+order\b',
+    # Court reporter info
+    r'\bthe\s+court\s+(?:no\s+longer\s+)?provides?\s+a\s+court\s+reporter\b',
+    r'\bparties\s+may\s+retain\s+(?:their\s+)?own\s+(?:court\s+)?reporter\b',
+    r'\ba\s+retained\s+reporter\s+must\s+be\s+a\s+california\s+certified',
+    r'\bif\s+a\s+csr\s+is\s+being\s+retained\b',
+    r'\bcalifornia\s+certified\s+(?:shorthand\s+)?reporter\b',
+    # Remote-appearance / Zoom / dial-in
+    r'\bzoom\s+(?:meeting|webinar|video|id)',
+    r'\bvideoconference\b',
+    r'\bcourtcall\b',
+    r'\bappear\s+(?:in[\s-]?person|telephonically|via\s+zoom|remotely)\b',
+    r'\bwebinar\s+id\b',
+    r'\bmeeting\s+id\b',
+    r'\bphone\s+dial\s+in\b',
+    r'\bdial[\s-]?in\s+(?:number|info|id|info\s+for)',
+    r'\bsfsuperiorcourt\.org\b',
+    r'\bmicrosoft\s+teams\b',
+    r'\bwebex\b',
+    # Email contest addresses
+    r'\b[\w.+-]+@sftc\.org\b',
+    # Time-based filing deadline boilerplate
+    r'\bno\s+later\s+than\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+(?:the\s+)?(?:court\s+)?day\s+(?:before|prior\s+to)',
+    r'\bby\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+(?:the\s+)?(?:court\s+)?day\s+(?:before|prior\s+to)',
+    r'\bby\s+\d{1,2}\s*:\s*\d{2}\s*(?:a\.?m\.?|p\.?m\.?)\s+on\s+the\s+(?:court\s+)?day\s+(?:before|prior\s+to)',
+]]
+
+_COURTCALL_RE = re.compile(
+    r"(?:CourtCall|(?:8|9|10|11)\s*:\s*\d{2}\s*a\.?m\.?\s+(?:law\s*(?:&|and)\s*motion|discovery|civil|calendar|department)"
+    r"|appear\s+remotely|appear\s+(?:in[\s-]?person|telephonically|via\s+zoom)|\bzoom\b|videoconference|sfsuperiorcourt\.org"
+    r"|telephonic\s+appearance|remote\s+appearance|microsoft\s+teams\b|webex\b|webinar\s+id\b|meeting\s+id\b|dial[\s-]?in\b"
+    r"|phone\s+dial\s+in|all\s+attorneys?\s+(?:and\s+parties\s+)?may\s+appear|(?:may|shall)\s+appear\s+in\s+(?:department|dept\.?)\s*\d+"
+    r"|remote\s+hearings?\s+(?:will\s+be|are)\s+conducted|to\s+appear\s+remotely\s+at\s+the\s+hearing|go\s+to\s+the\s+court'?s?\s+website"
+    r"|dial\s+the\s+(?:corresponding|appropriate)\s+phone\s+number|click\s+on\s+the\s+(?:appropriate|corresponding)\s+(?:link|number))",
+    re.IGNORECASE,
+)
+
+_SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z(=])')
+
+def split_ruling(full):
+    """Same shape as the JS splitRuling: returns (substantive, admin,
+    courtcall) for a ruling text. Sentence-level classification — each
+    sentence falls into exactly one bucket. Admin sentences that also
+    match COURTCALL_RE get routed to the courtcall bucket so the modal
+    can label them separately."""
+    if not full:
+        return ('', '', '')
+    sentences = _SENTENCE_SPLIT_RE.split(full)
+    sub_, adm_, cc_ = [], [], []
+    for s in sentences:
+        s = s.strip()
+        if not s:
+            continue
+        if any(p.search(s) for p in _ADMIN_PATTERNS):
+            if _COURTCALL_RE.search(s):
+                cc_.append(s)
+            else:
+                adm_.append(s)
+        else:
+            sub_.append(s)
+    return (
+        re.sub(r'[\s.,;:]+$', '.', ' '.join(sub_)).strip(),
+        ' '.join(adm_).strip(),
+        ' '.join(cc_).strip(),
+    )
+
 # Suffixes that mark a calendar_matter as part of a split ruling. Each
 # regex matches at the END of the calendar_matter so we strip them and
 # get a clean canonical form to group the parts under. Many continuation
@@ -705,6 +817,28 @@ def merge(existing: pd.DataFrame, new: pd.DataFrame):
     return combined.sort_values(["court_date", "department"]).reset_index(drop=True), inserted, skipped
 
 
+def add_split_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Run split_ruling against each row's ruling text and store the
+    three result strings as separate columns: ruling_substantive,
+    ruling_admin, ruling_courtcall. The original `ruling` column is
+    preserved untouched for back-compat with anyone scripting against
+    the canonical parquet directly. update-readme.py uses these
+    pre-computed columns to slice the per-dept main parquet
+    (substantive only) from the per-dept extras parquet (admin +
+    courtcall, lazy-loaded by the data browser)."""
+    if df.empty:
+        df["ruling_substantive"] = ""
+        df["ruling_admin"]       = ""
+        df["ruling_courtcall"]   = ""
+        return df
+    splits = df["ruling"].fillna("").apply(split_ruling)
+    df = df.copy()
+    df["ruling_substantive"] = splits.apply(lambda t: t[0])
+    df["ruling_admin"]       = splits.apply(lambda t: t[1])
+    df["ruling_courtcall"]   = splits.apply(lambda t: t[2])
+    return df
+
+
 def save_parquet(df: pd.DataFrame):
     df.to_parquet(PARQUET, index=False, compression="zstd")
 
@@ -832,9 +966,14 @@ def main():
             existing, inserted, skipped = merge(existing, new_df)
             print(f"  {inserted} inserted, {skipped} skipped (duplicates)")
 
+    print("Splitting rulings into substantive / admin / courtcall…")
+    with_splits = add_split_columns(existing)
     print("Saving parquet...")
-    save_parquet(existing)
+    save_parquet(with_splits)
     print("Saving SQLite...")
+    # SQLite mirrors the canonical schema only — the split columns live
+    # in the parquet for the data browser's slicer. Dropping them here
+    # keeps sqlite's CREATE TABLE statement stable.
     save_sqlite(existing)
     summary(existing)
 

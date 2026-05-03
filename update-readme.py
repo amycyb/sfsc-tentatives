@@ -393,12 +393,48 @@ def write_coverage(dept: str, df_dept: pd.DataFrame,
 
 def write_dept_parquet(dept: str, df_dept: pd.DataFrame):
     """Write data/tentatives-<N>.parquet — a single-department slice the
-    browser can fetch on demand. The combined tentatives.parquet stays put
-    for back-compat with anyone scripting against it directly; the data
-    browser only ever pulls these per-dept files now."""
+    browser can fetch on demand. Two parquets are emitted per dept:
+
+    - tentatives-<N>.parquet (main): everything the table view needs,
+      with ruling_substantive promoted to `ruling`. No admin /
+      courtcall — those bytes are deferred to the extras file.
+    - tentatives-<N>-extras.parquet (sidecar): row_hash + ruling_admin
+      + ruling_courtcall. The data browser fetches this only when a
+      user opens a modal and expands the admin / CourtCall
+      collapsible.
+
+    The combined tentatives.parquet stays unchanged (canonical, with
+    all three split columns) for anyone scripting against it directly.
+    """
     DATA_DIR.mkdir(exist_ok=True)
-    out = DATA_DIR / f'tentatives-{dept}.parquet'
-    df_dept.reset_index(drop=True).to_parquet(out, index=False, compression='zstd')
+    df_dept = df_dept.reset_index(drop=True).copy()
+
+    # Fall back gracefully if the canonical parquet pre-dates the
+    # ruling-split columns — in that case we ship the original ruling
+    # in the main file and emit no extras file.
+    has_splits = all(c in df_dept.columns for c in (
+        'ruling_substantive', 'ruling_admin', 'ruling_courtcall'))
+
+    main_out = DATA_DIR / f'tentatives-{dept}.parquet'
+    if has_splits:
+        main = df_dept.drop(columns=['ruling_admin', 'ruling_courtcall']).copy()
+        # Promote the substantive split into the user-facing `ruling`
+        # column so the browser doesn't have to know about the
+        # split-column convention.
+        main['ruling'] = main['ruling_substantive']
+        main = main.drop(columns=['ruling_substantive'])
+        main.to_parquet(main_out, index=False, compression='zstd')
+
+        extras_out = DATA_DIR / f'tentatives-{dept}-extras.parquet'
+        extras = df_dept[['row_hash', 'ruling_admin', 'ruling_courtcall']].copy()
+        # Drop rows with neither admin nor courtcall — keeps the
+        # sidecar small and the lookup-by-row_hash cheap on the
+        # browser side.
+        keep = (extras['ruling_admin'].fillna('').ne('')
+                | extras['ruling_courtcall'].fillna('').ne(''))
+        extras[keep].to_parquet(extras_out, index=False, compression='zstd')
+    else:
+        df_dept.to_parquet(main_out, index=False, compression='zstd')
 
 
 def write_manifest(dept_stats: list[dict]):
@@ -428,14 +464,23 @@ def main():
         # calendar (if any) preserved as a column for downstream tooling.
         write_dept_parquet(dept, sub)
         size_bytes = (DATA_DIR / f'tentatives-{dept}.parquet').stat().st_size
+        # Extras parquet (admin + courtcall, lazy-loaded by the data
+        # browser when the user opens a modal and expands the
+        # collapsible). Optional — older parquets without the split
+        # columns won't have a sidecar file.
+        extras_path = DATA_DIR / f'tentatives-{dept}-extras.parquet'
+        extras_size = int(extras_path.stat().st_size) if extras_path.exists() else None
         latest = sub['court_date'].max() if not sub.empty else None
-        dept_stats.append({
+        entry = {
             'department': dept,
             'name':       DEPT_NAMES.get(dept, f'Department {dept}'),
             'rulings':    int(len(sub)),
             'size_bytes': int(size_bytes),
             'latest':     latest,
-        })
+        }
+        if extras_size is not None:
+            entry['extras_size_bytes'] = extras_size
+        dept_stats.append(entry)
         # Sub-calendar split (currently only Dept 304): emit a separate
         # README section + coverage file per sub-calendar so contributors
         # can see each sub-calendar's gaps independently. The data
