@@ -245,8 +245,11 @@ def load_json(path, department=None):
     for rec in records:
         court_date_raw = rec.get("Court Date", "")
         ruling_text    = rec.get("Rulings", "").strip() or None
-        # Use explicit Judge field if present (scraped by extension), else derive from code
-        judge = rec.get("Judge") or extract_judge(ruling_text)
+        # Use explicit Judge field if present (scraped by extension); for Probate
+        # records the extension folds the Examiner field into Judge (title-cased),
+        # but fall back to Examiner directly in case an older scrape kept it raw.
+        examiner_raw = (rec.get("Examiner") or "").strip()
+        judge = rec.get("Judge") or (examiner_raw.title() if examiner_raw else None) or extract_judge(ruling_text)
         rows.append({
             "department":      department,
             "case_number":     rec.get("Case Number", "").strip() or None,
