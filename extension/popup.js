@@ -83,6 +83,12 @@ function parseDate(str) {
 // Cache the department determined from the current tab so multiple bulk
 // flows in one popup session don't each pay a scrape round-trip.
 let _detectedDept = null;
+// For Dept 304 only: the Asbestos sub-calendar ('discovery' |
+// 'law-and-motion' | null). Coverage tracking and the bulk-scan path
+// have to know which sub-folder of raw/dept304/ to read; without
+// this the extension would treat both sub-calendars as the same scan
+// target and mark a date "done" the moment either kind landed.
+let _detectedKind = null;
 
 // Tab → last successfully-detected dept, persisted across popup opens and
 // service-worker restarts. After a stop/CAPTCHA cycle the SFTC tab can
@@ -121,6 +127,7 @@ async function detectDepartment() {
       );
       if (results?.department) {
         _detectedDept = String(results.department);
+        if (results.calendar_kind) _detectedKind = results.calendar_kind;
         // Persist so a future popup open against this tab — even after
         // the SFTC page enters a degraded state — can recover the dept.
         _saveCachedDeptForTab(tabId, _detectedDept).catch(() => {});
@@ -142,25 +149,32 @@ async function detectDepartment() {
 
 async function fetchScannedDates(s) {
   const [owner, repo] = s.repo.split('/');
-  // Determine department from current page if possible, default to 302.
-  // Cached on _detectedDept so the bulk-start handler can read it without a
-  // second scrape round-trip.
+  // Determine department + sub-calendar from current page. Cached on
+  // _detectedDept / _detectedKind so the bulk-start handler can read
+  // them without a second scrape round-trip.
   const dept = await detectDepartment();
+  // Dept 304 has two sub-calendars (Asbestos Law & Motion, Asbestos
+  // Discovery) sorted into separate sub-folders. Coverage has to be
+  // computed from the right sub-folder — otherwise scraping Discovery
+  // would skip every date that already had a Law-and-Motion commit,
+  // and vice versa. Other depts ignore this.
+  const subfolder = dept === '304' ? (_detectedKind || '') : '';
+  const rawDir = subfolder ? `raw/dept${dept}/${subfolder}` : `raw/dept${dept}`;
+  const covSlug = subfolder ? `${dept}-${subfolder}` : dept;
 
   // Union three sources, in order of staleness:
-  //   • coverage/dept<N>.json — parquet court_dates ∪ raw filenames; only
-  //     refreshed when the ingest workflow runs, so it lags behind by
-  //     ~throttle window + workflow runtime. Required for the historical
-  //     Excel-imports (2014-2024) which have no raw files.
-  //   • raw/dept<N>/ listing — live within seconds of any commit.
+  //   • coverage/dept<N>[-<sub>].json — parquet court_dates ∪ raw
+  //     filenames; only refreshed when the ingest workflow runs, so it
+  //     lags. Required for the historical Excel imports (2014-2024).
+  //   • raw/dept<N>/[<sub>/] listing — live within seconds of any commit.
   //   • _localCommitted log   — survives popup reopen and SW restart, so a
   //     scan stopped mid-flight (or finished but pre-ingest) doesn't replay
   //     its committed dates as "still unscanned".
   const branch = s.branch || 'master';
   const headers = { Authorization: `Bearer ${s.token}`, 'X-GitHub-Api-Version': '2022-11-28' };
   const [covRes, dirRes, storage] = await Promise.allSettled([
-    fetch(`https://api.github.com/repos/${owner}/${repo}/contents/coverage/dept${dept}.json?ref=${branch}`, { headers }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/contents/raw/dept${dept}?ref=${branch}`, { headers }),
+    fetch(`https://api.github.com/repos/${owner}/${repo}/contents/coverage/dept${covSlug}.json?ref=${branch}`, { headers }),
+    fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${rawDir}?ref=${branch}`, { headers }),
     chrome.storage.local.get('_localCommitted'),
   ]);
 

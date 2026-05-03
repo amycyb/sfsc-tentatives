@@ -602,10 +602,22 @@
     #load-stages .stage.done     .stage-icon::before { content: '✓'; }
     #load-stages .stage.error    { color: #a02020; }
     #load-stages .stage.error    .stage-icon::before { content: '⚠'; }
+    #load-stages .stage.cancelled { color: #999; text-decoration: line-through; }
+    #load-stages .stage.cancelled .stage-icon::before { content: '×'; }
     #load-stages .stage-detail   {
       color: #888; font-size: 0.92em; margin-left: auto; padding-left: 1rem;
       white-space: nowrap; font-variant-numeric: tabular-nums;
     }
+    #load-stages .stage-cancel {
+      margin-left: 0.4rem; padding: 0 0.35rem; line-height: 1.1;
+      background: transparent; border: 1px solid #c8d0dc; border-radius: 3px;
+      color: #667; cursor: pointer; font-size: 0.72rem;
+      font-family: inherit; flex-shrink: 0;
+    }
+    #load-stages .stage-cancel:hover { background: #f0f3f8; color: #a02020; border-color: #a02020; }
+    #load-stages .stage.done .stage-cancel,
+    #load-stages .stage.error .stage-cancel,
+    #load-stages .stage.cancelled .stage-cancel { display: none; }
     #load-elapsed { font-size: 0.7rem; color: #aaa; margin-top: 0.6rem; }
     #error-bar {
       padding: 0.6rem 1rem; background: #fff0f0;
@@ -694,8 +706,54 @@
       background: #fff8e8; border-color: #d8a900; color: #6b5300;
     }
 
+    /* Clickable case title in the table — opens the case-history modal
+       (all rulings for that case number). Underline-on-hover hint plus
+       a darker color so it reads as a link without being noisy when the
+       column is wide and dense. */
+    .case-title-link {
+      cursor: pointer; color: #214d78;
+      border-bottom: 1px dotted transparent;
+    }
+    .case-title-link:hover {
+      border-bottom-color: #214d78; color: #102d4a;
+    }
+    /* Case-history modal — list of rulings for one case number,
+       opened by clicking a case title in the main grid. Each entry
+       is itself clickable (opens the per-ruling modal). */
+    #case-history-list {
+      margin-top: 0.6rem; max-height: 60vh; overflow-y: auto;
+      border: 1px solid #e5e9f1; border-radius: 4px;
+    }
+    #case-history-list .ch-row {
+      display: grid;
+      grid-template-columns: 90px 64px 70px 1fr 130px;
+      gap: 0.6rem; align-items: baseline;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid #eef0f4;
+      cursor: pointer; font-size: 0.82rem;
+    }
+    #case-history-list .ch-row:last-child { border-bottom: none; }
+    #case-history-list .ch-row:hover { background: #f5f8fc; }
+    #case-history-list .ch-date { font-variant-numeric: tabular-nums; color: #555; }
+    #case-history-list .ch-time { color: #888; font-size: 0.78rem; }
+    #case-history-list .ch-dept { color: #555; }
+    #case-history-list .ch-motion { color: #1a3a5c; line-height: 1.35; }
+    #case-history-list .ch-motion .ch-judge {
+      display: block; color: #888; font-size: 0.74rem; margin-top: 0.1rem;
+    }
+    #case-history-list .ch-outcome { text-align: right; }
+    #case-history-list .ch-empty {
+      padding: 1rem; text-align: center; color: #888; font-style: italic;
+    }
+    #case-history-list .ch-current { background: #fff8e8; }
+
     @media (max-width: 720px) {
       .col-time, .col-dept { display: none; }
+      #case-history-list .ch-row {
+        grid-template-columns: 80px 1fr 100px;
+      }
+      #case-history-list .ch-row .ch-time,
+      #case-history-list .ch-row .ch-dept { display: none; }
     }
   </style>
 </head>
@@ -833,7 +891,7 @@
           <span class="col-head"><span class="col-label">Case #</span></span>
         </th>
         <th class="col-title   sortable" data-col="case_title">
-          <span class="col-head"><span class="col-label">Case Title</span></span>
+          <span class="col-head"><span class="col-label">Case Title</span><button class="col-filter-btn" data-filter-col="case_title" data-filter-kind="value" title="Filter by Case Title — search and tick">▾</button></span>
         </th>
         <!-- Category column: sortable + filterable. Both go through the
              JS post-pass machinery (motion_category is derived from
@@ -894,6 +952,15 @@
       <span class="ruling-id" id="modal-ruling-id" title="Unique ruling ID (SHA-1 of case # + date + ruling text)"></span>
       <a class="btn report-btn" id="modal-report" target="_blank" rel="noopener">🐞 Report Issue</a>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="case-overlay">
+  <div class="modal">
+    <button class="modal-close" id="case-close">×</button>
+    <h2 id="case-title"></h2>
+    <div class="meta" id="case-meta"></div>
+    <div id="case-history-list"></div>
   </div>
 </div>
 
@@ -1966,10 +2033,15 @@ async function rebuildDataView() {
         NULL::VARCHAR AS judge_canonical,
         NULL::VARCHAR AS judge_subtype,
         NULL::VARCHAR AS ruling,
-        NULL::VARCHAR AS row_hash
+        NULL::VARCHAR AS row_hash,
+        NULL::VARCHAR AS calendar_kind
       WHERE FALSE`);
     return;
   }
+  // calendar_kind: stamped on Dept 304 rows ('discovery' /
+  // 'law-and-motion'), null elsewhere. TRY_CAST guards against
+  // older per-dept parquets that predate the column — they get
+  // null instead of the union failing.
   const unions = [...loadedDepts.keys()]
     .map(d => `SELECT
         department, case_number, case_title, court_date, hearing_time,
@@ -1983,7 +2055,8 @@ async function rebuildDataView() {
           WHEN judge LIKE 'Judge Pro Tem:%' THEN TRIM(SUBSTRING(judge FROM 16))
           ELSE NULL
         END AS judge_subtype,
-        ruling, row_hash
+        ruling, row_hash,
+        TRY_CAST(calendar_kind AS VARCHAR) AS calendar_kind
       FROM ${tableNameFor(d)}`)
     .join(' UNION ALL ');
   await conn.query(`CREATE OR REPLACE VIEW data AS ${unions}`);
@@ -2057,7 +2130,7 @@ async function loadDept(dept, { persist = true } = {}) {
   } catch (err) {
     if (err.name === 'AbortError') {
       setDeptStatus(dept, 'idle');
-      stage?.error('cancelled');
+      stage?.cancelled?.('cancelled') ?? stage?.error('cancelled');
     } else {
       console.error(`Failed to load dept ${dept}:`, err);
       setDeptStatus(dept, 'error', { message: err.message || String(err) });
@@ -2456,6 +2529,9 @@ function bootStageRender(stage) {
   if (stage.el) {
     stage.el.className = `stage ${stage.status}`;
     stage.el.querySelector('.stage-detail').textContent = stage.detail || '';
+    const btn = stage.el.querySelector('.stage-cancel');
+    if (btn) btn.style.display =
+      (stage.cancellable && (stage.status === 'queued' || stage.status === 'active')) ? '' : 'none';
     return;
   }
   const container = bootStageEl();
@@ -2468,17 +2544,35 @@ function bootStageRender(stage) {
     '<span class="stage-detail"></span>';
   stage.el.querySelector('.stage-label').textContent = stage.label;
   stage.el.querySelector('.stage-detail').textContent = stage.detail || '';
+  if (stage.cancellable) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'stage-cancel';
+    btn.textContent = 'Cancel';
+    btn.title = 'Skip loading this department';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (stage.status !== 'queued' && stage.status !== 'active') return;
+      try { stage.onCancel && stage.onCancel(); } catch (err) { console.error(err); }
+    });
+    stage.el.appendChild(btn);
+  }
   container.appendChild(stage.el);
 }
 
-function bootStage(id, label) {
+function bootStage(id, label, opts = {}) {
   let s = _bootStages.get(id);
   if (!s) {
-    s = { id, label, status: 'queued', detail: '', el: null };
+    s = { id, label, status: 'queued', detail: '', el: null,
+          cancellable: !!opts.cancellable, onCancel: opts.onCancel || null };
     _bootStages.set(id, s);
+  } else if (opts.onCancel || opts.cancellable !== undefined) {
+    if (opts.onCancel) s.onCancel = opts.onCancel;
+    if (opts.cancellable !== undefined) s.cancellable = !!opts.cancellable;
   }
   bootStageRender(s);
   return {
+    get status() { return s.status; },
     start(detail) {
       s.status = 'active';
       if (detail !== undefined) s.detail = detail;
@@ -2492,6 +2586,11 @@ function bootStage(id, label) {
     },
     error(detail) {
       s.status = 'error';
+      if (detail !== undefined) s.detail = detail;
+      bootStageRender(s);
+    },
+    cancelled(detail) {
+      s.status = 'cancelled';
       if (detail !== undefined) s.detail = detail;
       bootStageRender(s);
     },
@@ -2585,20 +2684,51 @@ try {
     // Pre-register a stage per dept so the user sees the whole list
     // as queued; loadDept's progress callback flips them to active /
     // done as it goes. Use the manifest entry's display name so the
-    // panel reads "Loading Department 204 — Probate".
+    // panel reads "Loading Department 204 — Probate". Each dept gets
+    // a Cancel button so the user can skip a queued or in-flight load
+    // without waiting for it to finish — handy when a previous session
+    // persisted a heavy dept they no longer want auto-loaded.
     $('load-msg').textContent = persisted.length === 1
       ? 'Loading 1 department…'
       : `Loading ${persisted.length} departments…`;
+    const cancelledDepts = new Set();
     for (const d of persisted) {
       const meta = manifest.departments.find(m => String(m.department) === String(d));
-      bootStage(`dept-${d}`, `Loading ${meta?.name || `Department ${d}`}`);
+      bootStage(`dept-${d}`, `Loading ${meta?.name || `Department ${d}`}`, {
+        cancellable: true,
+        onCancel: () => {
+          // Mid-flight: abort the fetch (loadDept's catch flips the
+          // stage to "cancelled"). Still-queued: just mark it so the
+          // loop below skips it when it arrives.
+          cancelledDepts.add(String(d));
+          const ctl = inflight.get(String(d));
+          if (ctl) {
+            try { ctl.abort(); } catch (e) { console.error(e); }
+          } else {
+            const s = _bootStages.get(`dept-${d}`);
+            if (s && s.status === 'queued') {
+              s.status = 'cancelled';
+              s.detail = 'skipped';
+              bootStageRender(s);
+            }
+          }
+        },
+      });
     }
     // Sequential to keep memory pressure predictable. Each load fires
     // its own runQuery via onLoadedSetChanged so the user sees
     // partial results arrive in the table behind the panel; the
     // final runQuery below applies any restored URL filters on top
     // of the fully-loaded set.
-    for (const d of persisted) await loadDept(d, { persist: false });
+    for (const d of persisted) {
+      if (cancelledDepts.has(String(d))) continue;
+      await loadDept(d, { persist: false });
+    }
+    // The persisted-depts list in localStorage now needs to reflect
+    // what actually loaded — anything the user cancelled should not
+    // come back next session. loadedDepts only contains successful
+    // loads, so re-persisting from it drops the cancelled ones.
+    if (cancelledDepts.size > 0) persistLoadedDepts();
     bootStage('finalising', 'Restoring saved filters and rendering').start();
     restoreState();
     if (loadedDepts.size > 0) await runQuery(currentPage || 0);
@@ -3170,7 +3300,7 @@ function renderTable(data) {
       <td class="col-date">${r.court_date ?? ''}</td>
       <td class="col-time">${r.hearing_time ?? ''}</td>
       <td class="col-case">${caseNumberLink(r.case_number)}</td>
-      <td class="col-title">${esc(r.case_title)}</td>
+      <td class="col-title">${r.case_title ? `<span class="case-title-link" data-cn="${esc(r.case_number || '')}" title="See all tentatives for this case">${esc(r.case_title)}</span>` : ''}</td>
       <td class="col-mcat"><span class="mcat-pill ${catClass}">${esc(cat)}</span></td>
       <td class="col-mtype"><span class="mtype-pill">${esc(m.type)}</span>${sub}</td>
       <td class="col-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome)}</span>${oSub}</td>
@@ -3182,7 +3312,19 @@ function renderTable(data) {
   }).join('');
   window._rows = data;
   tbody.querySelectorAll('tr').forEach(tr =>
-    tr.addEventListener('click', () => openModal(window._rows[+tr.dataset.idx]))
+    tr.addEventListener('click', (e) => {
+      // The case-title cell opens a different modal — all tentatives for
+      // that case number. The link element absorbs the click here so the
+      // row's per-ruling modal doesn't fire as well.
+      const cn = e.target.closest('.case-title-link');
+      if (cn) {
+        e.stopPropagation();
+        const num = cn.dataset.cn || '';
+        if (num) openCaseHistory(num, window._rows[+tr.dataset.idx]);
+        return;
+      }
+      openModal(window._rows[+tr.dataset.idx]);
+    })
   );
   applyColVisibility();
 }
@@ -4092,7 +4234,16 @@ const COL_FILTER_LABELS = {
   outcome:         'Outcome',
   judge:           'Judicial Officer',
   officer_type:    'Type of Judicial Officer',
+  case_title:      'Case Title',
 };
+
+// Columns where the unique-value list is too long to render all at once
+// or to default-check (case_title can have thousands of unique entries).
+// The popup uses search-first UX: nothing is selected initially, the
+// list is capped to a render budget, and Apply with empty selection
+// means "no filter" rather than "filter to empty set".
+const HIGH_CARDINALITY_FILTER_COLS = new Set(['case_title']);
+const HIGH_CARD_RENDER_CAP = 200;
 
 let _openColFilter = null; // current column key while popup is open
 
@@ -4135,13 +4286,26 @@ async function openColFilter(col, btn) {
   // Working selection is independent of columnFilters[col] until Apply is
   // clicked, so Cancel reverts cleanly.
   const existing = columnFilters[col];
-  // null/undefined existing = "all visible". We start with all checked so
-  // unchecking is the natural action ("hide these").
-  const selected = existing instanceof Set ? new Set(existing)
-                                            : new Set(pairs.map(p => p.value));
+  const isHighCard = HIGH_CARDINALITY_FILTER_COLS.has(col);
+  // null/undefined existing = "all visible". For low-cardinality columns
+  // we start with all checked so unchecking is the natural action ("hide
+  // these"). For high-cardinality columns (case_title) the list is too
+  // long to default-tick — start empty, search, tick the few you want.
+  const selected = existing instanceof Set
+    ? new Set(existing)
+    : (isHighCard ? new Set() : new Set(pairs.map(p => p.value)));
 
   let sortMode = 'count';   // 'az' | 'za' | 'count'
   let search = '';
+  if (isHighCard) {
+    // Default to A→Z so the search-tick flow has predictable ordering
+    // — by-count looks bizarre when most counts are 1.
+    sortMode = 'az';
+    // Auto-focus the search box so the user can start typing immediately
+    // — the whole point of opening this filter.
+    setTimeout(() => pop.querySelector('.cf-search')?.focus(), 0);
+    pop.querySelector('.cf-search').placeholder = 'Type to search case titles…';
+  }
 
   function renderList() {
     const listEl = pop.querySelector('.cf-list');
@@ -4154,8 +4318,30 @@ async function openColFilter(col, btn) {
       view = view.filter(p => String(p.value).toLowerCase().includes(q));
     }
     if (!view.length) {
-      listEl.innerHTML = '<div class="cf-empty">No matching values.</div>';
-      return;
+      // High-cardinality columns ALSO need to surface already-selected
+      // values so the user can untick them — even if the user's search
+      // doesn't match them. We render them in a "selected" group above
+      // any other matches when search is empty. When search has a query
+      // and nothing matches, fall through to the empty state.
+      if (isHighCard && !search && selected.size > 0) {
+        view = pairs.filter(p => selected.has(p.value));
+      }
+      if (!view.length) {
+        listEl.innerHTML = isHighCard && !search
+          ? '<div class="cf-empty">Type to search case titles, then tick the ones you want.</div>'
+          : '<div class="cf-empty">No matching values.</div>';
+        return;
+      }
+    }
+    // For high-cardinality columns the full list (after search) can run
+    // into thousands. Cap to keep the DOM responsive; the user is
+    // expected to refine their search until the list is manageable.
+    let truncatedNote = '';
+    if (isHighCard && view.length > HIGH_CARD_RENDER_CAP) {
+      truncatedNote = `<div class="cf-empty" style="text-align:left;padding:0.3rem 0.5rem;color:#888">`
+                    + `Showing ${HIGH_CARD_RENDER_CAP} of ${view.length.toLocaleString()} matches `
+                    + `— refine your search to narrow further.</div>`;
+      view = view.slice(0, HIGH_CARD_RENDER_CAP);
     }
     // Sort modes shouldn't break the parent → child grouping for
     // hierarchical columns (motion_type / outcome / judge). When NOT
@@ -4183,10 +4369,10 @@ async function openColFilter(col, btn) {
     }
     // (Select all) row controls every visible (post-search) row.
     const allChecked = view.every(p => selected.has(p.value));
-    let html =
+    let html = truncatedNote +
       `<label class="cf-row cf-all">` +
         `<input type="checkbox" class="cf-all-cb"${allChecked ? ' checked' : ''}>` +
-        `<span class="cf-label">(Select all${search ? ' visible' : ''})</span>` +
+        `<span class="cf-label">(Select all${search || isHighCard ? ' visible' : ''})</span>` +
       `</label>`;
     for (const p of view) {
       // Children render with a left indent + a small caret prefix and
@@ -4236,10 +4422,12 @@ async function openColFilter(col, btn) {
     // misleadingly show the "active" badge.
     if (selected.size === pairs.length) delete columnFilters[col];
     else if (selected.size === 0) {
-      // No values selected → user has hidden everything. Treat as a real
-      // (impossible) filter so the result count drops to zero — predictable
-      // and preserves the user's intent.
-      columnFilters[col] = new Set();
+      // High-cardinality columns start empty — apply with nothing ticked
+      // means "no filter wanted" (user opened, looked, closed). For the
+      // low-cardinality default-checked columns, empty means "user hid
+      // everything" → impossible filter, zero rows.
+      if (isHighCard) delete columnFilters[col];
+      else columnFilters[col] = new Set();
     } else {
       columnFilters[col] = new Set(selected);
     }
@@ -4578,7 +4766,88 @@ function populateBugReport(r, m, o, sp) {
 function closeModal() { $('overlay').classList.remove('open'); }
 $('modal-close').addEventListener('click', closeModal);
 $('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Case-history modal: opens when the user clicks a case title in the
+// table. Shows every ruling we have for the same case_number across the
+// loaded depts, sorted by date DESC. Each row in the list reopens the
+// per-ruling modal so the user can drill in. A "current" row (the one
+// the user clicked) is highlighted so it's obvious where they came from.
+function closeCaseHistory() { $('case-overlay').classList.remove('open'); }
+$('case-close').addEventListener('click', closeCaseHistory);
+$('case-overlay').addEventListener('click', e => { if (e.target.id === 'case-overlay') closeCaseHistory(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  // Close whichever overlay is on top; case-history sits on top of the
+  // per-ruling modal when both are open.
+  if ($('case-overlay').classList.contains('open')) closeCaseHistory();
+  else closeModal();
+});
+
+async function openCaseHistory(caseNumber, currentRow) {
+  if (!caseNumber) return;
+  const titleEl = $('case-title');
+  const metaEl  = $('case-meta');
+  const listEl  = $('case-history-list');
+  titleEl.textContent = currentRow?.case_title || `Case ${caseNumber}`;
+  metaEl.innerHTML = '';
+  listEl.innerHTML = '<div class="ch-empty">Loading…</div>';
+  $('case-overlay').classList.add('open');
+
+  let rows;
+  try {
+    const sql = `SELECT department, case_number, case_title, court_date,
+                        hearing_time, calendar_matter, judge, judge_canonical,
+                        judge_subtype, ruling, row_hash
+                   FROM data
+                  WHERE case_number = '${escapeSql(caseNumber)}'
+                  ORDER BY court_date DESC, hearing_time DESC`;
+    rows = (await conn.query(sql)).toArray();
+  } catch (err) {
+    listEl.innerHTML = `<div class="ch-empty">Failed to load history: ${esc(err.message || String(err))}</div>`;
+    return;
+  }
+
+  const cnLink =
+    `<a href="https://webapps.sftc.org/ci/CaseInfo.dll?CaseNum=${encodeURIComponent(caseNumber)}" `
+  + `target="_blank" rel="noopener noreferrer" `
+  + `title="Open case ${esc(caseNumber)} on the SFTC public docket">${esc(caseNumber)}</a>`;
+  metaEl.innerHTML =
+    `<span class="pill">${cnLink}</span>` +
+    `<span class="pill">${rows.length} ruling${rows.length === 1 ? '' : 's'} in loaded data</span>`;
+
+  if (!rows.length) {
+    listEl.innerHTML = '<div class="ch-empty">No other rulings found for this case in the loaded departments.</div>';
+    return;
+  }
+
+  const currentHash = currentRow?.row_hash || '';
+  listEl.innerHTML = rows.map((r, i) => {
+    const m = lookupMotion(r.department, r.calendar_matter);
+    const sp = splitRuling(r.ruling, r.department);
+    const o  = lookupOutcome(sp.ruling);
+    const isCurrent = currentHash && r.row_hash === currentHash;
+    const judgeMain = r.judge_canonical || r.judge || '';
+    const motionLine = esc(r.calendar_matter || m.type || '');
+    return `<div class="ch-row${isCurrent ? ' ch-current' : ''}" data-idx="${i}" `
+         + `title="${isCurrent ? 'This is the ruling you came from. ' : ''}Click to open this ruling">`
+         +   `<div class="ch-date">${esc(r.court_date || '')}</div>`
+         +   `<div class="ch-time">${esc(r.hearing_time || '')}</div>`
+         +   `<div class="ch-dept">Dept ${esc(r.department || '')}</div>`
+         +   `<div class="ch-motion">${motionLine}`
+         +     (judgeMain ? `<span class="ch-judge">${esc(judgeMain)}</span>` : '')
+         +   `</div>`
+         +   `<div class="ch-outcome"><span class="outcome-pill ${outcomeClass(o.outcome)}">${esc(o.outcome || '')}</span></div>`
+         + `</div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.ch-row').forEach(div => {
+    div.addEventListener('click', () => {
+      const r = rows[+div.dataset.idx];
+      closeCaseHistory();
+      openModal(r);
+    });
+  });
+}
 
 // ─── URL state ───────────────────────────────────────────────────────────────
 function saveState() {

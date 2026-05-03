@@ -20,8 +20,20 @@ DEPT_NAMES = {
     '204': 'Department 204 — Probate',
     '301': 'Department 301 — Discovery',
     '302': 'Department 302 — Civil Law and Motion',
-    '304': 'Department 304 — Asbestos Law and Motion',
+    '304': 'Department 304 — Asbestos Law and Motion / Discovery',
     '501': 'Department 501 — Real Property Court',
+}
+
+# Dept 304 hosts two sub-calendars on different days. The data browser
+# merges them into a single Department 304 view, but the README's
+# section-per-dept layout splits them so contributors can see each
+# sub-calendar's gaps independently. Each tuple is
+#   (calendar_kind, "<sub-folder name>", "Display name for the section").
+DEPT_SUB_CALENDARS = {
+    '304': [
+        ('law-and-motion', 'law-and-motion', 'Department 304 — Asbestos Law and Motion'),
+        ('discovery',      'discovery',      'Department 304 — Asbestos Discovery'),
+    ],
 }
 
 # Per-dept floor: ignore parquet rows and raw-scrape dates older than this
@@ -44,7 +56,7 @@ A searchable archive of every **tentative ruling** posted by the San Francisco S
 - Department 204 (Probate)
 - Department 301 (Discovery)
 - Department 302 (Civil Law and Motion)
-- Department 304 (Asbestos Law and Motion)
+- Department 304 (Asbestos Law and Motion + Asbestos Discovery)
 - Department 501 (Real Property)
 
 **[Open the searchable database →](https://aimesy.github.io/sfsc-tentatives/)**
@@ -104,7 +116,7 @@ Open the SFSC tentative rulings page (<https://webapps.sftc.org/tr/tr.dll>) in y
 ## Glossary
 
 - **Tentative ruling** — the court's preliminary written ruling on a motion, posted the day before the hearing. Becomes final unless a party "contests" it under the local rules.
-- **Department** — a courtroom and the judge assigned to it. Department 204 hears probate matters; Department 301 hears discovery motions; Department 302 hears civil law-and-motion calendars; Department 304 hears asbestos law-and-motion matters; Department 501 hears real-property matters.
+- **Department** — a courtroom and the judge assigned to it. Department 204 hears probate matters; Department 301 hears discovery motions; Department 302 hears civil law-and-motion calendars; Department 304 hears asbestos matters on two distinct sub-calendars (Asbestos Law and Motion + Asbestos Discovery, on different days); Department 501 hears real-property matters.
 - **Motion type** — the kind of motion (demurrer, summary judgment, motion to compel, anti-SLAPP, etc.). Auto-classified from the calendar caption; you can correct misclassifications by filing a bug report from the ruling's detail view.
 - **Outcome** — whether the motion was granted, denied, continued, taken off calendar, etc. Auto-classified from the ruling text; same correction path as motion type.
 
@@ -213,25 +225,43 @@ def format_gaps(runs: list[tuple[str, str]]) -> str:
         lines.append(f'- {start}' if start == end else f'- {start} → {end}')
     return '\n'.join(lines)
 
-def scraped_dates_for_dept(dept: str) -> set[str]:
+def scraped_dates_for_dept(dept: str, subfolder: str = '') -> set[str]:
     """Dates we have raw scrape evidence for, derived from filenames in
-    raw/dept<N>/. A date with a raw file is *not* a gap even if no rulings
-    landed in the parquet for it (e.g. the page returned zero tentatives,
-    or returned tentatives whose hearings are on a different date)."""
+    raw/dept<N>/[<subfolder>/]. A date with a raw file is *not* a gap
+    even if no rulings landed in the parquet for it (e.g. the page
+    returned zero tentatives, or returned tentatives whose hearings are
+    on a different date).
+
+    `subfolder` scopes the walk to a single sub-calendar (used for
+    Dept 304's per-kind coverage). Empty `subfolder` walks the
+    top-level dept dir only — non-recursive — to keep
+    sub-calendar files from contaminating the merged dept-level
+    coverage."""
     raw_dir = HERE / 'raw' / f'dept{dept}'
+    if subfolder:
+        raw_dir = raw_dir / subfolder
     if not raw_dir.is_dir():
         return set()
     out = set()
     for p in raw_dir.glob('*.json'):
-        # Filenames are <YYYY-MM-DD>-<HHMMSS>.json
         stem = p.stem
         if len(stem) >= 10 and stem[4] == '-' and stem[7] == '-':
             out.add(stem[:10])
     return out
 
 
-def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
-    name    = DEPT_NAMES.get(dept, f'Department {dept}')
+def dept_section(dept: str, df_dept: pd.DataFrame,
+                 *, kind: str | None = None,
+                 subfolder: str = '',
+                 display_name: str | None = None) -> str:
+    """Render one collapsible <details> block for a department (or one
+    sub-calendar of a department). `kind` filters df_dept to rows whose
+    `calendar_kind` equals it; `subfolder` scopes the raw-file scan;
+    `display_name` overrides the DEPT_NAMES default for the section
+    header (used for Dept 304 sub-calendar splits)."""
+    if kind is not None and 'calendar_kind' in df_dept.columns:
+        df_dept = df_dept[df_dept['calendar_kind'] == kind]
+    name    = display_name or DEPT_NAMES.get(dept, f'Department {dept}')
     count   = len(df_dept)
     # `dates`: hearing dates that produced rulings — the meaningful coverage
     #          for someone searching the archive ("days with data").
@@ -242,7 +272,7 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
     # that's what users actually care about; the harvest extents and gap
     # mechanics live inside as an aside.
     dates   = set(df_dept['court_date'].unique())
-    scraped = scraped_dates_for_dept(dept)
+    scraped = scraped_dates_for_dept(dept, subfolder=subfolder)
     # Apply the per-dept floor: if a department only began publishing
     # tentatives online on a given date, anything before it is excluded
     # from gap calculation entirely (otherwise three pre-floor empty-marker
@@ -254,7 +284,21 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
     checked = dates | scraped
 
     if not checked:
-        return ''
+        # For a sub-calendar (kind set) we still render an empty section
+        # so the reader sees "this calendar exists, no data yet" — that
+        # was the whole point of separate counters for Dept 304's two
+        # sub-calendars. For a top-level dept with no data anywhere
+        # we'd genuinely have nothing useful to show.
+        if kind is None:
+            return ''
+        summary = (f'<strong>{name}</strong>'
+                   f' &nbsp;·&nbsp; 0 rulings'
+                   f' &nbsp;·&nbsp; no scans yet')
+        body = ('\n_No rulings or scans have landed for this sub-calendar yet. '
+                'Once the extension records its first scrape it will start '
+                'showing here, and gaps will be enumerated against the '
+                'court\'s posted hearing days._\n')
+        return f'<details>\n<summary>{summary}</summary>\n{body}</details>\n'
 
     earliest_harvest = min(checked)
     latest_harvest   = max(checked)
@@ -296,12 +340,6 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
     }
     avail_note = avail_notes.get(dept, '')
 
-    # Dept 304 was originally treated as two sub-calendars (Asbestos
-    # Law & Motion and an Asbestos Discovery calendar). The discovery
-    # calendar isn't actually in use, so the breakdown was dropped —
-    # the column survives in the parquet for back-compat but every
-    # current row is law-and-motion.
-
     body = f"""\
 
 {count:,} tentative rulings across {n_days_data:,} hearing day{"s" if n_days_data != 1 else ""} ({earliest_data} → {latest_data}).
@@ -321,20 +359,31 @@ def dept_section(dept: str, df_dept: pd.DataFrame) -> str:
 
     return f'<details>\n<summary>{summary}</summary>\n{body}</details>\n'
 
-def write_coverage(dept: str, df_dept: pd.DataFrame):
-    """Write coverage/dept<N>.json — the union of dates that appear in the
-    parquet (court_date) and dates with a raw scrape file. The browser
-    extension uses this to decide which dates still need scraping; without
-    it, the extension only sees raw filenames and treats every parquet-only
-    date as unscanned (the historical Excel imports populated 2017-2024
-    rulings without any raw files)."""
+def write_coverage(dept: str, df_dept: pd.DataFrame,
+                   *, kind: str | None = None, subfolder: str = ''):
+    """Write coverage/dept<N>[-<subfolder>].json — the union of dates
+    that appear in the parquet (court_date) and dates with a raw
+    scrape file in this dept (or sub-calendar). The browser extension
+    uses this to decide which dates still need scraping; without it,
+    the extension only sees raw filenames and treats every
+    parquet-only date as unscanned (historical Excel imports
+    populated 2017-2024 rulings without any raw files).
+
+    For Dept 304 this is called twice — once per sub-calendar — so
+    the extension's "scan unscanned" check on an Asbestos Discovery
+    page only counts dates already scraped on the discovery
+    sub-calendar, and likewise for Law and Motion."""
+    if kind is not None and 'calendar_kind' in df_dept.columns:
+        df_dept = df_dept[df_dept['calendar_kind'] == kind]
     parquet_dates = set(df_dept['court_date'].dropna().unique())
-    file_dates    = scraped_dates_for_dept(dept)
+    file_dates    = scraped_dates_for_dept(dept, subfolder=subfolder)
     covered       = sorted(parquet_dates | file_dates)
     COVERAGE.mkdir(exist_ok=True)
-    out = COVERAGE / f'dept{dept}.json'
+    fname = f'dept{dept}-{subfolder}.json' if subfolder else f'dept{dept}.json'
+    out = COVERAGE / fname
     out.write_text(json.dumps({
         'department': dept,
+        'calendar_kind': kind,
         'covered':    covered,
         'min':        covered[0] if covered else None,
         'max':        covered[-1] if covered else None,
@@ -374,8 +423,9 @@ def main():
     dept_stats = []
     for dept in sorted(df['department'].unique()):
         sub = df[df['department'] == dept]
-        sections += dept_section(dept, sub)
-        write_coverage(dept, sub)
+        # Always emit a single per-dept parquet + manifest entry — the
+        # data browser shows departments as one row each, with sub-
+        # calendar (if any) preserved as a column for downstream tooling.
         write_dept_parquet(dept, sub)
         size_bytes = (DATA_DIR / f'tentatives-{dept}.parquet').stat().st_size
         latest = sub['court_date'].max() if not sub.empty else None
@@ -386,6 +436,24 @@ def main():
             'size_bytes': int(size_bytes),
             'latest':     latest,
         })
+        # Sub-calendar split (currently only Dept 304): emit a separate
+        # README section + coverage file per sub-calendar so contributors
+        # can see each sub-calendar's gaps independently. The data
+        # browser still merges them into a single Department 304 view.
+        subcals = DEPT_SUB_CALENDARS.get(dept)
+        if subcals:
+            for kind, subfolder, display_name in subcals:
+                sections += dept_section(dept, sub,
+                                         kind=kind, subfolder=subfolder,
+                                         display_name=display_name)
+                write_coverage(dept, sub, kind=kind, subfolder=subfolder)
+            # Also write the merged dept-level coverage so any
+            # downstream tooling that asks for coverage/dept304.json
+            # (without a sub-calendar suffix) still works.
+            write_coverage(dept, sub)
+        else:
+            sections += dept_section(dept, sub)
+            write_coverage(dept, sub)
     write_manifest(dept_stats)
 
     content = STATIC_TOP + '## Departments\n\n' + sections

@@ -5,7 +5,7 @@ A searchable archive of every **tentative ruling** posted by the San Francisco S
 - Department 204 (Probate)
 - Department 301 (Discovery)
 - Department 302 (Civil Law and Motion)
-- Department 304 (Asbestos Law and Motion)
+- Department 304 (Asbestos Law and Motion + Asbestos Discovery)
 - Department 501 (Real Property)
 
 **[Open the searchable database →](https://aimesy.github.io/sfsc-tentatives/)**
@@ -65,7 +65,7 @@ Open the SFSC tentative rulings page (<https://webapps.sftc.org/tr/tr.dll>) in y
 ## Glossary
 
 - **Tentative ruling** — the court's preliminary written ruling on a motion, posted the day before the hearing. Becomes final unless a party "contests" it under the local rules.
-- **Department** — a courtroom and the judge assigned to it. Department 204 hears probate matters; Department 301 hears discovery motions; Department 302 hears civil law-and-motion calendars; Department 304 hears asbestos law-and-motion matters; Department 501 hears real-property matters.
+- **Department** — a courtroom and the judge assigned to it. Department 204 hears probate matters; Department 301 hears discovery motions; Department 302 hears civil law-and-motion calendars; Department 304 hears asbestos matters on two distinct sub-calendars (Asbestos Law and Motion + Asbestos Discovery, on different days); Department 501 hears real-property matters.
 - **Motion type** — the kind of motion (demurrer, summary judgment, motion to compel, anti-SLAPP, etc.). Auto-classified from the calendar caption; you can correct misclassifications by filing a bug report from the ruling's detail view.
 - **Outcome** — whether the motion was granted, denied, continued, taken off calendar, etc. Auto-classified from the ruling text; same correction path as motion type.
 
@@ -201,6 +201,11 @@ _None — all weekdays in range are accounted for._
 - 2025-09-25 → 2025-09-26
 - 2025-09-30 → 2026-02-27
 
+</details>
+<details>
+<summary><strong>Department 304 — Asbestos Discovery</strong> &nbsp;·&nbsp; 0 rulings &nbsp;·&nbsp; no scans yet</summary>
+
+_No rulings or scans have landed for this sub-calendar yet. Once the extension records its first scrape it will start showing here, and gaps will be enumerated against the court's posted hearing days._
 </details>
 <details>
 <summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 23,438 rulings &nbsp;·&nbsp; 2016-05-31 → 2026-05-04 &nbsp;·&nbsp; 2,408 hearing days &nbsp;·&nbsp; 0 gaps</summary>

@@ -107,7 +107,7 @@ def extract_judge(ruling_text):
     return JUDGE_CODE_MAP.get(code)
 
 COLUMNS = ["department", "case_number", "case_title", "court_date", "hearing_time",
-           "calendar_matter", "judge", "ruling", "row_hash"]
+           "calendar_matter", "judge", "ruling", "row_hash", "calendar_kind"]
 
 # Suffixes that mark a calendar_matter as part of a split ruling. Each
 # regex matches at the END of the calendar_matter so we strip them and
@@ -331,6 +331,24 @@ def load_xlsx_2020_plus(path, department="302"):
     return rows
 
 
+def _calendar_kind_from_path(path):
+    """Infer the Asbestos sub-calendar from a raw file's path. Dept 304
+    files live under raw/dept304/<kind>/ where <kind> is 'discovery' or
+    'law-and-motion'; legacy flat-layout files in raw/dept304/ predate
+    the split and are all asbestos-law-and-motion (verified by ruling
+    text). Other depts have no sub-calendars and return None."""
+    parts = Path(path).parts
+    for i, p in enumerate(parts):
+        if p.startswith("dept"):
+            after = parts[i + 1] if i + 1 < len(parts) else ""
+            if after and not after.endswith(".json"):
+                return after  # 'discovery' or 'law-and-motion'
+            if p == "dept304":
+                return "law-and-motion"  # legacy flat-layout fallback
+            break
+    return None
+
+
 def load_json(path, department=None):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
@@ -342,11 +360,19 @@ def load_json(path, department=None):
         records = data
         if department is None:
             department = "302"
+        wrapper_kind = None
     else:
         records    = data.get("rulings", [])
         # Wrapper department takes precedence; CLI --dept is a fallback for
         # malformed scrapes that omit the field.
         department = str(data.get("department") or department or "302")
+        wrapper_kind = data.get("calendar_kind")
+
+    # Sub-calendar tag: prefer the wrapper's explicit field (newer
+    # extension scrapes set it), fall back to inferring from the raw
+    # file's path so the legacy flat-layout dept 304 files still get
+    # tagged correctly without a one-time backfill pass.
+    calendar_kind = wrapper_kind or _calendar_kind_from_path(path)
 
     rows = []
     for rec in records:
@@ -366,6 +392,7 @@ def load_json(path, department=None):
             "calendar_matter": rec.get("Calendar Matter", "").strip() or None,
             "judge":           normalize_judge_name(judge),
             "ruling":          ruling_text,
+            "calendar_kind":   calendar_kind,
         })
     return rows
 
@@ -645,11 +672,20 @@ def migrate_existing(df: pd.DataFrame) -> pd.DataFrame:
     for col in COLUMNS:
         if col not in df.columns:
             df[col] = None
-    # Dept 304 used to ship a `calendar_kind` column distinguishing the
-    # Asbestos Law-and-Motion sub-calendar from an Asbestos Discovery
-    # sub-calendar. The discovery sub-calendar isn't actually in use, so
-    # the column has been dropped from COLUMNS — older parquets that
-    # carry it through `df[COLUMNS]` will have it silently projected away.
+
+    # Calendar-kind backfill for Dept 304 rows imported before the column
+    # existed. Discovery sub-calendar rulings always begin "On Asbestos
+    # Discovery Calendar..."; everything else in 304 is asbestos-law-and-
+    # motion. Path-based inference handles future ingests; this text-based
+    # pass closes the gap on already-indexed rows.
+    if "department" in df.columns and "calendar_kind" in df.columns:
+        m304 = (df["department"] == "304") & df["calendar_kind"].isna()
+        if m304.any():
+            disc_re = re.compile(r"On\s+Asbestos\s+Discovery\s+Calendar", re.IGNORECASE)
+            df.loc[m304 & df["ruling"].fillna("").str.contains(disc_re),
+                   "calendar_kind"] = "discovery"
+            df.loc[(df["department"] == "304") & df["calendar_kind"].isna(),
+                   "calendar_kind"] = "law-and-motion"
 
     # consolidate_splits already recomputes the hash and dedupes; we just need
     # to ensure the canonical column order/presence on its way out.
@@ -687,7 +723,8 @@ def save_sqlite(df: pd.DataFrame):
             calendar_matter TEXT,
             judge           TEXT,
             ruling          TEXT,
-            row_hash        TEXT UNIQUE
+            row_hash        TEXT UNIQUE,
+            calendar_kind   TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_department    ON tentatives(department);
         CREATE INDEX IF NOT EXISTS idx_case_number   ON tentatives(case_number);
