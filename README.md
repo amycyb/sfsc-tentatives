@@ -207,15 +207,15 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 23,149 rulings &nbsp;·&nbsp; 2016-06-27 → 2026-05-04 &nbsp;·&nbsp; 2,371 hearing days &nbsp;·&nbsp; 0 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 23,224 rulings &nbsp;·&nbsp; 2016-05-31 → 2026-05-04 &nbsp;·&nbsp; 2,379 hearing days &nbsp;·&nbsp; 0 gaps</summary>
 
-23,149 tentative rulings across 2,371 hearing days (2016-06-27 → 2026-05-04).
+23,224 tentative rulings across 2,379 hearing days (2016-05-31 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 2,371 of 2,424 weekdays in range (97.8%)
+- **Hearing days with data:** 2,379 of 2,443 weekdays in range (97.4%)
 - **Days scanned:** 2,443 (including days the court posted no rulings)
-- **Earliest harvested:** 2016-05-31
+- **Earliest harvested:** 2016-05-31 (same as first hearing day)
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
 
