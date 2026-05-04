@@ -3,10 +3,10 @@
     {
       "department": "204",
       "name": "Department 204 \u2014 Probate",
-      "rulings": 98756,
-      "size_bytes": 6931877,
+      "rulings": 99634,
+      "size_bytes": 6957897,
       "latest": "2026-05-04",
-      "extras_size_bytes": 306581
+      "extras_size_bytes": 309537
     },
     {
       "department": "301",
@@ -27,10 +27,10 @@
     {
       "department": "304",
       "name": "Department 304 \u2014 Asbestos Law and Motion / Discovery",
-      "rulings": 169,
-      "size_bytes": 55000,
+      "rulings": 179,
+      "size_bytes": 61582,
       "latest": "2026-04-28",
-      "extras_size_bytes": 10449
+      "extras_size_bytes": 10796
     },
     {
       "department": "501",

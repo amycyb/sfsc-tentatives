@@ -116,34 +116,20 @@ python update-readme.py
 ## Departments
 
 <details>
-<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 98,756 rulings &nbsp;·&nbsp; 2014-02-10 → 2026-05-04 &nbsp;·&nbsp; 2,215 hearing days &nbsp;·&nbsp; 15 gaps</summary>
+<summary><strong>Department 204 — Probate</strong> &nbsp;·&nbsp; 99,634 rulings &nbsp;·&nbsp; 2014-02-10 → 2026-05-04 &nbsp;·&nbsp; 2,238 hearing days &nbsp;·&nbsp; 0 gaps</summary>
 
-98,756 tentative rulings across 2,215 hearing days (2014-02-10 → 2026-05-04).
+99,634 tentative rulings across 2,238 hearing days (2014-02-10 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 2,215 of 3,012 weekdays in range (73.5%)
-- **Days scanned:** 3,013 (including days the court posted no rulings)
+- **Hearing days with data:** 2,238 of 3,012 weekdays in range (74.3%)
+- **Days scanned:** 3,038 (including days the court posted no rulings)
 - **Earliest harvested:** 2014-01-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (15)
+### Gaps (0)
 
-- 2014-02-11 → 2014-02-13
-- 2014-02-18 → 2014-02-19
-- 2014-02-25 → 2014-02-27
-- 2014-03-05
-- 2014-03-11 → 2014-03-17
-- 2014-05-16
-- 2014-05-20
-- 2014-07-17
-- 2014-07-22
-- 2014-07-24 → 2014-07-28
-- 2014-08-13
-- 2014-08-19
-- 2014-09-15
-- 2014-09-24
-- 2014-09-29
+_None — all weekdays in range are accounted for._
 
 </details>
 <details>
@@ -183,14 +169,14 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 304 — Asbestos Law and Motion</strong> &nbsp;·&nbsp; 169 rulings &nbsp;·&nbsp; 2025-03-11 → 2026-04-28 &nbsp;·&nbsp; 37 hearing days &nbsp;·&nbsp; 6 gaps</summary>
+<summary><strong>Department 304 — Asbestos Law and Motion</strong> &nbsp;·&nbsp; 179 rulings &nbsp;·&nbsp; 2025-02-11 → 2026-04-28 &nbsp;·&nbsp; 40 hearing days &nbsp;·&nbsp; 6 gaps</summary>
 
-169 tentative rulings across 37 hearing days (2025-03-11 → 2026-04-28).
+179 tentative rulings across 40 hearing days (2025-02-11 → 2026-04-28).
 
 ### Coverage
 
-- **Hearing days with data:** 37 of 279 weekdays in range (13.3%)
-- **Days scanned:** 578 (including days the court posted no rulings)
+- **Hearing days with data:** 40 of 297 weekdays in range (13.5%)
+- **Days scanned:** 603 (including days the court posted no rulings)
 - **Earliest harvested:** 2020-01-02
 - **Latest harvested:** 2026-05-01
 
@@ -201,7 +187,7 @@ _None — all weekdays in range are accounted for._
 - 2020-06-22 → 2020-06-24
 - 2020-07-15 → 2020-07-16
 - 2020-07-30 → 2020-08-03
-- 2021-03-24 → 2025-03-03
+- 2021-04-07 → 2025-02-05
 
 </details>
 <details>
