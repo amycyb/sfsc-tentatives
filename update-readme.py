@@ -20,7 +20,7 @@ DEPT_NAMES = {
     '204': 'Department 204 — Probate',
     '301': 'Department 301 — Discovery',
     '302': 'Department 302 — Civil Law and Motion',
-    '304': 'Department 304 — Asbestos Law and Motion / Discovery',
+    '304': 'Department 304 — Asbestos Law and Motion',
     '501': 'Department 501 — Real Property Court',
 }
 
@@ -31,9 +31,7 @@ DEPT_NAMES = {
 #   (calendar_kind, "<sub-folder name>", "Display name for the section").
 DEPT_SUB_CALENDARS = {
     '304': [
-        ('law-and-motion', 'law-and-motion', 'Department 304 — Asbestos Law and Motion'),
-        ('discovery',      'discovery',      'Department 304 — Asbestos Discovery'),
-    ],
+        ('law-and-motion', 'law-and-motion', 'Department 304 — Asbestos Law and Motion'),    ],
 }
 
 # Per-dept floor: ignore parquet rows and raw-scrape dates older than this
@@ -56,7 +54,7 @@ A searchable archive of every **tentative ruling** posted by the San Francisco S
 - Department 204 (Probate)
 - Department 301 (Discovery)
 - Department 302 (Civil Law and Motion)
-- Department 304 (Asbestos Law and Motion + Asbestos Discovery)
+- Department 304 (Asbestos Law and Motion)
 - Department 501 (Real Property)
 
 **[Open the searchable database →](https://aimesy.github.io/sfsc-tentatives/)**
