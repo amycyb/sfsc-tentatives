@@ -169,20 +169,23 @@ _None — all weekdays in range are accounted for._
 
 </details>
 <details>
-<summary><strong>Department 304 — Asbestos Law and Motion</strong> &nbsp;·&nbsp; 146 rulings &nbsp;·&nbsp; 2025-04-08 → 2026-04-28 &nbsp;·&nbsp; 32 hearing days &nbsp;·&nbsp; 1 gap</summary>
+<summary><strong>Department 304 — Asbestos Law and Motion</strong> &nbsp;·&nbsp; 146 rulings &nbsp;·&nbsp; 2025-04-08 → 2026-04-28 &nbsp;·&nbsp; 32 hearing days &nbsp;·&nbsp; 4 gaps</summary>
 
 146 tentative rulings across 32 hearing days (2025-04-08 → 2026-04-28).
 
 ### Coverage
 
 - **Hearing days with data:** 32 of 260 weekdays in range (12.3%)
-- **Days scanned:** 368 (including days the court posted no rulings)
+- **Days scanned:** 388 (including days the court posted no rulings)
 - **Earliest harvested:** 2020-01-02
 - **Latest harvested:** 2026-05-01
 
-### Gaps (1)
+### Gaps (4)
 
-- 2020-06-04 → 2025-04-07
+- 2020-06-04
+- 2020-06-09 → 2020-06-10
+- 2020-06-22 → 2020-06-24
+- 2020-07-13 → 2025-04-07
 
 </details>
 <details>
@@ -191,21 +194,30 @@ _None — all weekdays in range are accounted for._
 _No rulings or scans have landed for this sub-calendar yet. Once the extension records its first scrape it will start showing here, and gaps will be enumerated against the court's posted hearing days._
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 25,522 rulings &nbsp;·&nbsp; 2015-01-02 → 2026-05-04 &nbsp;·&nbsp; 2,603 hearing days &nbsp;·&nbsp; 4 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 25,522 rulings &nbsp;·&nbsp; 2015-01-02 → 2026-05-04 &nbsp;·&nbsp; 2,603 hearing days &nbsp;·&nbsp; 13 gaps</summary>
 
 25,522 tentative rulings across 2,603 hearing days (2015-01-02 → 2026-05-04).
 
 ### Coverage
 
 - **Hearing days with data:** 2,603 of 2,791 weekdays in range (93.3%)
-- **Days scanned:** 2,715 (including days the court posted no rulings)
-- **Earliest harvested:** 2015-01-02 (same as first hearing day)
+- **Days scanned:** 2,823 (including days the court posted no rulings)
+- **Earliest harvested:** 2014-01-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
-### Gaps (4)
+### Gaps (13)
 
+- 2014-01-07 → 2014-01-08
+- 2014-01-10 → 2014-02-26
+- 2014-02-28
+- 2014-03-05 → 2014-05-30
+- 2014-06-04
+- 2014-06-25 → 2014-07-07
+- 2014-07-21 → 2014-07-23
+- 2014-08-27 → 2014-12-31
 - 2015-06-10 → 2015-06-16
-- 2015-07-31 → 2015-10-19
+- 2015-09-09
+- 2015-09-24 → 2015-09-25
 - 2015-11-20 → 2015-12-11
 - 2016-03-29 → 2016-03-30
 
