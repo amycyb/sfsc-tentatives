@@ -194,14 +194,14 @@ _None — all weekdays in range are accounted for._
 _No rulings or scans have landed for this sub-calendar yet. Once the extension records its first scrape it will start showing here, and gaps will be enumerated against the court's posted hearing days._
 </details>
 <details>
-<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 25,522 rulings &nbsp;·&nbsp; 2015-01-02 → 2026-05-04 &nbsp;·&nbsp; 2,603 hearing days &nbsp;·&nbsp; 13 gaps</summary>
+<summary><strong>Department 501 — Real Property Court</strong> &nbsp;·&nbsp; 25,910 rulings &nbsp;·&nbsp; 2014-03-18 → 2026-05-04 &nbsp;·&nbsp; 2,642 hearing days &nbsp;·&nbsp; 13 gaps</summary>
 
-25,522 tentative rulings across 2,603 hearing days (2015-01-02 → 2026-05-04).
+25,910 tentative rulings across 2,642 hearing days (2014-03-18 → 2026-05-04).
 
 ### Coverage
 
-- **Hearing days with data:** 2,603 of 2,791 weekdays in range (93.3%)
-- **Days scanned:** 2,823 (including days the court posted no rulings)
+- **Hearing days with data:** 2,642 of 2,988 weekdays in range (88.4%)
+- **Days scanned:** 2,847 (including days the court posted no rulings)
 - **Earliest harvested:** 2014-01-02
 - **Latest harvested:** 2026-05-04 (same as last hearing day)
 
@@ -210,12 +210,12 @@ _No rulings or scans have landed for this sub-calendar yet. Once the extension r
 - 2014-01-07 → 2014-01-08
 - 2014-01-10 → 2014-02-26
 - 2014-02-28
-- 2014-03-05 → 2014-05-30
+- 2014-03-05 → 2014-03-17
+- 2014-04-14 → 2014-05-30
 - 2014-06-04
 - 2014-06-25 → 2014-07-07
 - 2014-07-21 → 2014-07-23
-- 2014-08-27 → 2014-12-31
-- 2015-06-10 → 2015-06-16
+- 2014-08-28 → 2014-12-31
 - 2015-09-09
 - 2015-09-24 → 2015-09-25
 - 2015-11-20 → 2015-12-11
