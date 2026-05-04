@@ -1,0 +1,17 @@
+{
+  "sources": [
+    {
+      "id": "sfsc",
+      "label": "San Francisco Superior Court",
+      "manifest_url": "https://raw.githubusercontent.com/aimesy/sfsc-tentatives/master/data/manifest.json",
+      "parquet_base_url": "https://raw.githubusercontent.com/aimesy/sfsc-tentatives/master/data/"
+    },
+    {
+      "id": "edsc",
+      "label": "El Dorado Superior Court",
+      "manifest_url": "https://raw.githubusercontent.com/aimesy/edsc-tentatives/master/data/manifest.json",
+      "parquet_base_url": "https://raw.githubusercontent.com/aimesy/edsc-tentatives/master/data/",
+      "note": "Placeholder — repo not yet populated; will 404 until data lands."
+    }
+  ]
+}

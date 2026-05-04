@@ -2280,7 +2280,13 @@ const FILTER_COLS = [
 // and can be removed via the dropdown's Remove action.
 
 const LS_KEY     = 'sfsc.loadedDepartments';
-const MANIFEST_URL = './data/manifest.json';
+// POC: cross-court index. URLs come from sources.json (loaded in loadSources())
+// rather than hardcoded `./data/`. The first entry in sources.json is treated
+// as the active source for now; multi-source UI is a follow-up.
+const SOURCES_URL = './sources.json';
+let SOURCES        = [];
+let MANIFEST_URL   = null;   // set by loadSources()
+let DATA_BASE_URL  = null;   // set by loadSources(); has trailing slash
 let db;                              // DuckDB instance
 let manifest = { departments: [] };  // fetched manifest
 const loadedDepts = new Map();       // dept -> { rulings, latest }
@@ -2412,7 +2418,7 @@ async function loadDept(dept, { persist = true } = {}) {
     const meta = manifest.departments.find(d => String(d.department) === String(dept));
     const sizeMb = meta ? (meta.size_bytes / 1e6).toFixed(1) : '?';
     stage?.start(`downloading (${sizeMb} MB)…`);
-    const url  = `./data/tentatives-${dept}.parquet`;
+    const url  = `${DATA_BASE_URL}tentatives-${dept}.parquet`;
     const buf  = await fetchWithProgress(url,
       (received, total) => {
         setDeptStatus(dept, 'downloading', { received, total: total || meta?.size_bytes || 0 });
@@ -2928,6 +2934,36 @@ async function bootDuckDB() {
   stage.done('ready');
 }
 
+async function loadSources() {
+  // POC: read sources.json and adopt the first entry as the active source.
+  // sources.json shape:
+  //   { "sources": [
+  //       { "id": "sfsc", "label": "...",
+  //         "manifest_url": "...manifest.json",
+  //         "parquet_base_url": "...data/" }   // trailing slash required
+  //     ] }
+  const stage = bootStage('sources', 'Reading source list');
+  stage.start();
+  try {
+    const res = await fetch(SOURCES_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching sources.json`);
+    const cfg = await res.json();
+    SOURCES = Array.isArray(cfg.sources) ? cfg.sources : [];
+    const live = SOURCES.filter(s => s.manifest_url && s.parquet_base_url);
+    if (!live.length) throw new Error('No usable sources in sources.json');
+    const active = live[0];
+    MANIFEST_URL  = active.manifest_url;
+    DATA_BASE_URL = active.parquet_base_url.endsWith('/')
+                    ? active.parquet_base_url
+                    : active.parquet_base_url + '/';
+    stage.done(`${live.length} source${live.length !== 1 ? 's' : ''} (active: ${active.label || active.id})`);
+  } catch (err) {
+    console.error('loadSources failed:', err);
+    stage.error(err.message || String(err));
+    throw err;
+  }
+}
+
 async function fetchManifest() {
   const stage = bootStage('manifest', 'Reading dataset manifest');
   stage.start();
@@ -2956,10 +2992,12 @@ try {
   // Pre-register the stages we know about so the user can see what's
   // queued from the start, not just what's already happened.
   bootStage('duckdb',     'Initialising database engine');
+  bootStage('sources',    'Reading source list');
   bootStage('manifest',   'Reading dataset manifest');
   // The auto-load stage is shown once we know how many depts are
   // persisted (it's added inside the auto-load branch below).
   await bootDuckDB();
+  await loadSources();
   await fetchManifest();
   renderDownloadsMenu();
 
@@ -5094,7 +5132,7 @@ async function loadExtrasForDept(dept) {
   if (_extrasMissing.has(dept)) return new Map();
   if (_extrasCache.has(dept)) return _extrasCache.get(dept);
   const promise = (async () => {
-    const url = `./data/tentatives-${dept}-extras.parquet`;
+    const url = `${DATA_BASE_URL}tentatives-${dept}-extras.parquet`;
     const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) {
       // Older datasets may not have an extras file. Mark and return
