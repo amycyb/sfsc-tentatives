@@ -2174,7 +2174,7 @@ function cmpSortKey(a, b) {
 const COLUMN_DEFS = [
   { key: 'department',      cls: 'col-dept',         label: 'Dept' },
   { key: 'court_date',      cls: 'col-date',         label: 'Date' },
-  { key: 'hearing_time',    cls: 'col-time',         label: 'Time' },
+  { key: 'hearing_time',    cls: 'col-time',         label: 'Time', defaultHidden: true },
   { key: 'case_number',     cls: 'col-case',         label: 'Case #' },
   // SF Superior Court case-number prefixes (3 letters: CGC, CUD,
   // PES, PTR, …) carry useful structural info — civil vs. probate,
