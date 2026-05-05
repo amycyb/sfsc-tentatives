@@ -147,18 +147,27 @@ async function detectDepartment() {
   return '302';
 }
 
-async function fetchScannedDates(s) {
+async function fetchScannedDates(s, deptOverride = null) {
   const [owner, repo] = s.repo.split('/');
   // Determine department + sub-calendar from current page. Cached on
   // _detectedDept / _detectedKind so the bulk-start handler can read
   // them without a second scrape round-trip.
-  const dept = await detectDepartment();
+  // deptOverride lets the multi-dept catch-up button fetch coverage for
+  // a department other than the active tab's, since each freshly-opened
+  // tab is on a different SFTC URL and we know the dept from the URL
+  // mapping rather than from the tab's content.
+  const dept = deptOverride || await detectDepartment();
   // Dept 304 has two sub-calendars (Asbestos Law & Motion, Asbestos
   // Discovery) sorted into separate sub-folders. Coverage has to be
   // computed from the right sub-folder — otherwise scraping Discovery
   // would skip every date that already had a Law-and-Motion commit,
   // and vice versa. Other depts ignore this.
-  const subfolder = dept === '304' ? (_detectedKind || '') : '';
+  // For the multi-dept catch-up flow we don't know the sub-calendar in
+  // advance (the freshly-opened tab hasn't been scraped yet), so we
+  // fall back to the un-suffixed coverage which captures the union of
+  // both sub-calendars; the bulk handler will then correctly file each
+  // commit under whichever sub-folder content.js reports.
+  const subfolder = (!deptOverride && dept === '304') ? (_detectedKind || '') : '';
   const rawDir = subfolder ? `raw/dept${dept}/${subfolder}` : `raw/dept${dept}`;
   const covSlug = subfolder ? `${dept}-${subfolder}` : dept;
 
@@ -350,6 +359,171 @@ async function autoScanUnscanned() {
       }
     }
   );
+}
+
+// ── Catch-up across all departments ──────────────────────────────────────────
+// Each SFTC department lives at its own RulingID URL; the site routes the
+// `Department <N>` heading and the dept-scoped date input from that param.
+// Opening a fresh tab against each URL gives us five independent scrape
+// surfaces that the existing per-tab bulk infrastructure already handles
+// (see background.js's per-tab job state and the popup's all-scans list).
+const DEPT_URL_MAP = {
+  '204': 'https://webapps.sftc.org/tr/tr.dll?RulingID=7',   // Probate
+  '301': 'https://webapps.sftc.org/tr/tr.dll?RulingID=10',  // Discovery
+  '302': 'https://webapps.sftc.org/tr/tr.dll?RulingID=2',   // Civil Law and Motion
+  '304': 'https://webapps.sftc.org/tr/tr.dll?RulingID=5',   // Asbestos Law and Motion
+  '501': 'https://webapps.sftc.org/tr/tr.dll?RulingID=3',   // Real Property
+};
+
+// Resolves once the given tab transitions to status 'complete' (or
+// rejects after a timeout). MV3 tabs.onUpdated is the only reliable
+// signal that the SFTC framework has finished its initial render —
+// chrome.tabs.create returns immediately with a Tab object whose
+// `status` may still be 'loading'.
+function waitForTabComplete(tabId, timeoutMs = 30_000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error(`tab ${tabId} did not finish loading within ${timeoutMs}ms`));
+    }, timeoutMs);
+    function listener(updatedTabId, info) {
+      if (updatedTabId !== tabId) return;
+      if (info.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+    // Race: the tab may already be complete by the time we attached.
+    chrome.tabs.get(tabId, t => {
+      if (chrome.runtime.lastError) {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (t?.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    });
+  });
+}
+
+// "Catch up all departments through the next business day": opens one
+// background tab per department in the manifest, computes that dept's
+// unscanned weekdays up to nextBusinessDay(today) — i.e. through the
+// hearing day for tomorrow's tentative postings — and starts a bulk
+// scan in each tab. Each tab's job runs independently, status feeding
+// into the existing #all-scans display.
+async function catchUpAllDepartments() {
+  const s = await loadSettings();
+  const err = validateSettings(s);
+  if (err) { setStatus(err, 'error'); return; }
+
+  $('catchup-all-btn').disabled = true;
+  setStatus('Loading manifest…', 'loading');
+
+  // Pull the manifest so we only spawn tabs for departments that
+  // actually have an archive — opening a tab for a dept the repo has
+  // never tracked would scrape into a folder the ingest pipeline
+  // doesn't know about.
+  const [owner, repo] = s.repo.split('/');
+  const branch  = s.branch || 'master';
+  const headers = { Authorization: `Bearer ${s.token}`, 'X-GitHub-Api-Version': '2022-11-28' };
+
+  let depts;
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/data/manifest.json?ref=${branch}`,
+      { headers }
+    );
+    if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
+    const meta = await res.json();
+    const manifest = JSON.parse(atob((meta.content || '').replace(/\n/g, '')));
+    depts = (manifest.departments || [])
+      .map(d => String(d.department))
+      .filter(d => DEPT_URL_MAP[d]);
+  } catch (e) {
+    setStatus(`Couldn't fetch manifest: ${e.message}`, 'error');
+    $('catchup-all-btn').disabled = false;
+    return;
+  }
+  if (!depts.length) {
+    setStatus('Manifest has no scanned departments.', 'warn');
+    $('catchup-all-btn').disabled = false;
+    return;
+  }
+
+  const today    = localISO(new Date());
+  const endDate  = nextBusinessDay(today);
+  const waitMs   = parseInt($('bulk-wait').value) || 5_000;
+  const settings = { token: s.token, repo: s.repo, branch };
+
+  let started = 0, empty = 0, failed = 0;
+  const failures = [];
+
+  for (const dept of depts) {
+    setStatus(`Dept ${dept}: computing unscanned dates…`, 'loading');
+
+    const scannedDates = await fetchScannedDates(s, dept).catch(() => null);
+    let allWeekdays;
+    if (scannedDates?.length) {
+      allWeekdays = weekdaysBetween(scannedDates[0], endDate);
+    } else {
+      // No prior coverage — fall back to a one-year window so a freshly
+      // added dept doesn't try to backfill a decade in one go.
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      allWeekdays = weekdaysBetween(localISO(oneYearAgo), endDate);
+    }
+    const scanned   = new Set(scannedDates || []);
+    let   unscanned = allWeekdays.filter(d => !scanned.has(d));
+    if (getScanDirection() === 'backward') unscanned = [...unscanned].reverse();
+
+    if (!unscanned.length) {
+      empty++;
+      continue;
+    }
+
+    setStatus(`Dept ${dept}: opening tab and starting scan of ${unscanned.length} dates…`, 'loading');
+
+    let tab;
+    try {
+      tab = await chrome.tabs.create({ url: DEPT_URL_MAP[dept], active: false });
+      await waitForTabComplete(tab.id);
+      // Give the SFTC framework a beat to attach jQuery / datepicker
+      // before content.js tries to drive them.
+      await new Promise(r => setTimeout(r, 400));
+    } catch (e) {
+      failed++;
+      failures.push(`Dept ${dept}: ${e.message}`);
+      continue;
+    }
+
+    const startRes = await new Promise(resolve =>
+      chrome.runtime.sendMessage(
+        { action: 'start-bulk', payload: { dates: unscanned, tabId: tab.id, settings, waitMs, department: dept } },
+        r => resolve(r || {})
+      )
+    );
+    if (startRes?.error) {
+      failed++;
+      failures.push(`Dept ${dept}: ${startRes.error}`);
+    } else {
+      started++;
+    }
+  }
+
+  const parts = [];
+  if (started) parts.push(`${started} scan${started !== 1 ? 's' : ''} started`);
+  if (empty)   parts.push(`${empty} already up to date`);
+  if (failed)  parts.push(`${failed} failed`);
+  const detail = failures.length ? ` — ${failures.join('; ')}` : '';
+  setStatus(parts.join(', ') + detail, failed ? 'warn' : 'success');
+  $('catchup-all-btn').disabled = false;
 }
 
 // ── Date inputs (text + custom calendar widget) ───────────────────────────────
@@ -1108,6 +1282,7 @@ function openShortcutsPage() {
 
 $('hotkey-config').addEventListener('click', e => { e.preventDefault(); openShortcutsPage(); });
 $('auto-scan-btn').addEventListener('click', autoScanUnscanned);
+$('catchup-all-btn').addEventListener('click', catchUpAllDepartments);
 $('jump-first').addEventListener('click', jumpToFirstGap);
 $('jump-last').addEventListener('click',  jumpToResume);
 

@@ -265,6 +265,15 @@
     #auto-scan-btn:hover:not(:disabled) { background: #338a58; }
     #auto-scan-btn:disabled { opacity: 0.4; cursor: default; }
 
+    #catchup-all-btn {
+      background: #1a6c5a;
+      color: white;
+      font-size: 0.82rem;
+      margin-bottom: 0.6rem;
+    }
+    #catchup-all-btn:hover:not(:disabled) { background: #228470; }
+    #catchup-all-btn:disabled { opacity: 0.4; cursor: default; }
+
     #bulk-btn {
       background: #2e6da4;
       color: white;
@@ -366,6 +375,7 @@
         </label>
       </div>
       <button id="auto-scan-btn" disabled>Scan Unscanned Pages</button>
+      <button id="catchup-all-btn" title="Open one tab per department in the manifest and scan every unscanned weekday up through the next business day after today. Doesn't require an open SFTC tab.">Catch up all depts (through tomorrow)</button>
       <div class="bulk-row">
         <div>
           <label>From</label>
