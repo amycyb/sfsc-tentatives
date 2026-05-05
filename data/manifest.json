@@ -3,18 +3,18 @@
     {
       "department": "204",
       "name": "Department 204 \u2014 Probate",
-      "rulings": 99634,
-      "size_bytes": 6957897,
-      "latest": "2026-05-04",
-      "extras_size_bytes": 309537
+      "rulings": 99679,
+      "size_bytes": 6960877,
+      "latest": "2026-05-05",
+      "extras_size_bytes": 309677
     },
     {
       "department": "301",
       "name": "Department 301 \u2014 Discovery",
-      "rulings": 3983,
-      "size_bytes": 989329,
-      "latest": "2026-05-04",
-      "extras_size_bytes": 130155
+      "rulings": 3993,
+      "size_bytes": 991476,
+      "latest": "2026-05-05",
+      "extras_size_bytes": 130527
     },
     {
       "department": "302",
