@@ -845,29 +845,31 @@ def save_parquet(df: pd.DataFrame):
 
 def save_sqlite(df: pd.DataFrame):
     conn = sqlite3.connect(DB_PATH)
-    conn.executescript("""
-        DROP TABLE IF EXISTS tentatives;
-        CREATE TABLE tentatives (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            department      TEXT,
-            case_number     TEXT,
-            case_title      TEXT,
-            court_date      DATE,
-            hearing_time    TEXT,
-            calendar_matter TEXT,
-            judge           TEXT,
-            ruling          TEXT,
-            row_hash        TEXT UNIQUE,
-            calendar_kind   TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_department    ON tentatives(department);
-        CREATE INDEX IF NOT EXISTS idx_case_number   ON tentatives(case_number);
-        CREATE INDEX IF NOT EXISTS idx_court_date    ON tentatives(court_date);
-        CREATE INDEX IF NOT EXISTS idx_judge         ON tentatives(judge);
-    """)
-    df.to_sql("tentatives", conn, if_exists="append", index=False,
-              method="multi", chunksize=500)
-    conn.close()
+    try:
+        conn.executescript("""
+            DROP TABLE IF EXISTS tentatives;
+            CREATE TABLE tentatives (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                department      TEXT,
+                case_number     TEXT,
+                case_title      TEXT,
+                court_date      DATE,
+                hearing_time    TEXT,
+                calendar_matter TEXT,
+                judge           TEXT,
+                ruling          TEXT,
+                row_hash        TEXT UNIQUE,
+                calendar_kind   TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_department    ON tentatives(department);
+            CREATE INDEX IF NOT EXISTS idx_case_number   ON tentatives(case_number);
+            CREATE INDEX IF NOT EXISTS idx_court_date    ON tentatives(court_date);
+            CREATE INDEX IF NOT EXISTS idx_judge         ON tentatives(judge);
+        """)
+        df.to_sql("tentatives", conn, if_exists="append", index=False,
+                  method="multi", chunksize=500)
+    finally:
+        conn.close()
 
 
 def summary(df: pd.DataFrame):
